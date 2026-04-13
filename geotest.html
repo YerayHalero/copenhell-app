@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoTest — Real Position</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: monospace; background: #0a0a0a; color: #ddd; height: 100vh; display: flex; flex-direction: column; }
+
+  #topbar { background: #111; border-bottom: 1px solid #222; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  #topbar h1 { font-size: 13px; letter-spacing: 3px; color: #ff2200; flex: 1; }
+  #status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; flex-shrink: 0; }
+  #status-dot.gps { background: #00ff55; box-shadow: 0 0 6px #00ff55; }
+  #status-dot.live { background: #44aaff; box-shadow: 0 0 6px #44aaff; animation: pulse 1.5s infinite; }
+  #status-dot.both { background: #00ff55; box-shadow: 0 0 8px #00ff55; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  #status-label { font-size: 10px; color: #666; letter-spacing: 1px; }
+
+  #map { flex: 1; }
+
+  #panel { background: #0f0f0f; border-top: 1px solid #1e1e1e; padding: 10px 14px; flex-shrink: 0; }
+  .row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .row:last-child { margin-bottom: 0; }
+  label { font-size: 9px; letter-spacing: 2px; color: #555; width: 60px; flex-shrink: 0; }
+  input { background: #0a0a0a; border: 1px solid #1e1e1e; color: #ddd; font-family: monospace; font-size: 12px; padding: 5px 8px; flex: 1; outline: none; letter-spacing: 1px; }
+  input:focus { border-color: #ff2200; }
+  button { background: #cc2200; border: none; color: white; font-family: monospace; font-size: 10px; letter-spacing: 2px; padding: 6px 12px; cursor: pointer; text-transform: uppercase; }
+  button:hover { background: #ff2200; }
+  button.sec { background: transparent; border: 1px solid #333; color: #888; }
+  button.sec:hover { border-color: #555; color: #ddd; }
+
+  #log { font-size: 9px; color: #444; letter-spacing: .5px; line-height: 1.8; max-height: 52px; overflow-y: auto; }
+  #log span { display: block; }
+  #log .ok { color: #00aa33; }
+  #log .err { color: #cc2200; }
+  #log .info { color: #0066cc; }
+
+  #users-bar { display: flex; gap: 6px; padding: 6px 14px; background: #0a0a0a; border-top: 1px solid #1a1a1a; flex-shrink: 0; overflow-x: auto; }
+  .user-pill { font-size: 9px; padding: 3px 8px; border-radius: 10px; white-space: nowrap; letter-spacing: 1px; border: 1px solid; }
+
+  /* Leaflet marker override */
+  .my-marker { width: 14px; height: 14px; border-radius: 50%; background: #ff2200; border: 2px solid white; box-shadow: 0 0 8px #ff2200; }
+  .other-marker { width: 12px; height: 12px; border-radius: 50%; background: #44aaff; border: 2px solid white; box-shadow: 0 0 6px #44aaff; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>GEOTEST</h1>
+  <div id="status-dot"></div>
+  <span id="status-label">WAITING</span>
+</div>
+
+<div id="map"></div>
+
+<div id="users-bar" id="users-bar"></div>
+
+<div id="panel">
+  <div class="row">
+    <label>NAME</label>
+    <input id="inp-name" placeholder="Your name (e.g. WOLF)" maxlength="12" style="text-transform:uppercase;"/>
+    <button onclick="startTracking()">GO</button>
+    <button class="sec" onclick="stopTracking()">Stop</button>
+  </div>
+  <div id="log">
+    <span class="info">→ Enter your name and press GO</span>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const SB_URL = 'https://jootvxinokfwffkdhony.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvb3R2eGlub2tmd2Zma2Rob255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDEyMTcsImV4cCI6MjA5MDkxNzIxN30.gJ7aDKudwWNb_WDsMUB8l375CmbD_C3O_-_EUCRmMbo';
+const UPDATE_INTERVAL = 4000; // ms between position pushes
+const STALE_THRESHOLD = 30000; // 30s = consider user offline
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let myName = '';
+let myId = 'user_' + Math.random().toString(36).substring(2, 8);
+let watchId = null;
+let pushInterval = null;
+let myLat = null, myLng = null;
+let myMarker = null;
+let otherMarkers = {};
+let map = null;
+let hasSetView = false;
+
+// ── MAP INIT ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  map = L.map('map', { zoomControl: true }).setView([55.676, 12.568], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(map);
+
+  setStatus('waiting', 'WAITING');
+  log('→ Enter your name and press GO', 'info');
+});
+
+// ── START TRACKING ────────────────────────────────────────────────────────
+function startTracking() {
+  myName = (document.getElementById('inp-name').value.trim() || 'ANON').toUpperCase();
+  if (!navigator.geolocation) {
+    log('✗ GPS not supported on this browser', 'err');
+    return;
+  }
+
+  log('⏳ Requesting GPS permission...', 'info');
+  setStatus('gps', 'LOCATING');
+
+  watchId = navigator.geolocation.watchPosition(
+    onPosition,
+    onGPSError,
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+  );
+
+  // Pull other users every 4s
+  pushInterval = setInterval(pullOthers, UPDATE_INTERVAL);
+  setTimeout(pullOthers, 500);
+}
+
+function stopTracking() {
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+  if (pushInterval) { clearInterval(pushInterval); pushInterval = null; }
+  // Mark as offline
+  if (myName) deleteMyPosition();
+  setStatus('waiting', 'STOPPED');
+  log('○ Tracking stopped', 'info');
+}
+
+// ── GPS CALLBACK ──────────────────────────────────────────────────────────
+function onPosition(pos) {
+  myLat = pos.coords.latitude;
+  myLng = pos.coords.longitude;
+  const acc = Math.round(pos.coords.accuracy);
+
+  log(`✓ GPS ${myLat.toFixed(5)}, ${myLng.toFixed(5)} ±${acc}m`, 'ok');
+  setStatus('both', 'LIVE');
+
+  // Update my marker
+  if (!myMarker) {
+    const icon = L.divIcon({ className: '', html: `<div class="my-marker"></div>`, iconSize: [14,14], iconAnchor: [7,7] });
+    myMarker = L.marker([myLat, myLng], { icon }).addTo(map);
+    myMarker.bindPopup(`<b>${myName}</b><br>That's you`);
+  } else {
+    myMarker.setLatLng([myLat, myLng]);
+  }
+
+  // Center map on first fix
+  if (!hasSetView) {
+    map.setView([myLat, myLng], 17);
+    hasSetView = true;
+  }
+
+  // Push to Supabase
+  pushMyPosition();
+}
+
+function onGPSError(err) {
+  const msgs = { 1: 'Permission denied — allow GPS in browser', 2: 'GPS unavailable', 3: 'GPS timeout' };
+  log(`✗ ${msgs[err.code] || 'GPS error'}`, 'err');
+  setStatus('waiting', 'GPS ERROR');
+}
+
+// ── SUPABASE ──────────────────────────────────────────────────────────────
+async function sbFetch(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'resolution=merge-duplicates' : ''
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(SB_URL + '/rest/v1/' + path, opts);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(txt);
+  }
+  return method === 'GET' ? res.json() : res;
+}
+
+async function pushMyPosition() {
+  if (myLat === null) return;
+  try {
+    await sbFetch('positions', 'POST', [{
+      id: myId,
+      name: myName,
+      code: myId,
+      color: '#ff2200',
+      avatar: '📍',
+      x: myLat,   // reusing x/y fields for lat/lng in test
+      y: myLng,
+      status: '',
+      status_expiry: 0,
+      updated_at: Date.now()
+    }]);
+  } catch(e) {
+    log(`✗ Push failed: ${e.message.substring(0,60)}`, 'err');
+  }
+}
+
+async function pullOthers() {
+  try {
+    const data = await sbFetch('positions?select=*');
+    const now = Date.now();
+    const usersBar = document.getElementById('users-bar');
+    const pills = [];
+
+    data.forEach(p => {
+      if (p.id === myId) return; // skip myself
+      if (now - p.updated_at > STALE_THRESHOLD) {
+        // Remove stale marker
+        if (otherMarkers[p.id]) { map.removeLayer(otherMarkers[p.id]); delete otherMarkers[p.id]; }
+        return;
+      }
+
+      const lat = p.x, lng = p.y;
+      if (!lat || !lng) return;
+
+      const color = p.color || '#44aaff';
+      const html = `<div class="other-marker" style="background:${color};box-shadow:0 0 6px ${color};"></div>`;
+      const icon = L.divIcon({ className: '', html, iconSize: [12,12], iconAnchor: [6,6] });
+
+      if (!otherMarkers[p.id]) {
+        otherMarkers[p.id] = L.marker([lat, lng], { icon }).addTo(map);
+        otherMarkers[p.id].bindPopup(`<b>${p.name}</b>`);
+        log(`→ ${p.name} appeared on map`, 'info');
+      } else {
+        otherMarkers[p.id].setLatLng([lat, lng]);
+      }
+
+      const age = Math.round((now - p.updated_at) / 1000);
+      pills.push(`<div class="user-pill" style="color:${color};border-color:${color}44;">${p.name} · ${age}s ago</div>`);
+    });
+
+    // Update users bar
+    if (usersBar) usersBar.innerHTML = pills.length
+      ? pills.join('')
+      : '<div class="user-pill" style="color:#444;border-color:#222;">No other users yet</div>';
+
+  } catch(e) {
+    log(`✗ Pull failed: ${e.message.substring(0,60)}`, 'err');
+  }
+}
+
+async function deleteMyPosition() {
+  try { await sbFetch(`positions?id=eq.${myId}`, 'DELETE'); } catch(e) {}
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function setStatus(cls, label) {
+  const dot = document.getElementById('status-dot');
+  const lbl = document.getElementById('status-label');
+  dot.className = cls;
+  lbl.textContent = label;
+}
+
+function log(msg, type = 'info') {
+  const el = document.getElementById('log');
+  if (!el) return;
+  const span = document.createElement('span');
+  span.className = type;
+  span.textContent = msg;
+  el.appendChild(span);
+  el.scrollTop = el.scrollHeight;
+  // Keep max 20 lines
+  while (el.children.length > 20) el.removeChild(el.firstChild);
+}
+
+// Clean up on page close
+window.addEventListener('beforeunload', deleteMyPosition);
+</script>
+</body>
+</html>
