@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoTest — Real Position</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: monospace; background: #0a0a0a; color: #ddd; }
+#wrap { display: flex; flex-direction: column; height: 100vh; }
+
+#topbar { background: #111; border-bottom: 1px solid #222; padding: 10px 14px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+#topbar h1 { font-size: 12px; letter-spacing: 3px; color: #ff2200; flex: 1; }
+.sdot { width: 8px; height: 8px; border-radius: 50%; background: #333; flex-shrink: 0; transition: all .3s; }
+.sdot.searching { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; animation: blink 1s infinite; }
+.sdot.live { background: #00ff55; box-shadow: 0 0 6px #00ff55; }
+.sdot.err  { background: #ff2200; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.2;} }
+.slbl { font-size: 9px; letter-spacing: 1px; color: #444; margin-right: 6px; }
+
+#map { flex: 1; min-height: 0; }
+
+#users-bar { background: #080808; border-top: 1px solid #1a1a1a; padding: 6px 12px; display: flex; gap: 6px; flex-shrink: 0; overflow-x: auto; min-height: 32px; align-items: center; }
+.upill { font-size: 9px; padding: 3px 10px; border-radius: 10px; white-space: nowrap; letter-spacing: 1px; border: 1px solid; }
+
+#debuglog { background: #050505; border-top: 1px solid #1a1a1a; padding: 5px 12px; flex-shrink: 0; max-height: 60px; overflow-y: auto; }
+#debuglog span { display: block; font-size: 9px; line-height: 1.9; }
+#debuglog .ok  { color: #00aa33; }
+#debuglog .err { color: #cc2200; }
+#debuglog .inf { color: #0066aa; }
+#debuglog .dim { color: #333; }
+
+/* GPS PROMPT OVERLAY */
+#gps-prompt { position: absolute; inset: 0; z-index: 2000; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 28px; text-align: center; }
+#gps-prompt.hidden { display: none; }
+.gps-icon { font-size: 48px; }
+.gps-title { font-size: 17px; letter-spacing: 4px; color: #ff2200; }
+.gps-desc { font-size: 11px; color: #555; line-height: 1.9; max-width: 270px; }
+.name-row { display: flex; gap: 8px; width: 100%; max-width: 270px; }
+.name-row input { flex: 1; background: #111; border: 1px solid #2a2a2a; color: #ddd; font-family: monospace; font-size: 14px; padding: 10px 12px; outline: none; letter-spacing: 2px; text-transform: uppercase; }
+.name-row input:focus { border-color: #ff2200; }
+.go-btn { width: 100%; max-width: 270px; padding: 13px; background: #cc2200; border: none; color: white; font-family: monospace; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; cursor: pointer; }
+.go-btn:hover { background: #ff2200; }
+.gps-note { font-size: 10px; color: #2a2a2a; max-width: 260px; line-height: 1.7; }
+
+/* GPS ERROR OVERLAY */
+#gps-err { position: absolute; inset: 0; z-index: 2000; background: rgba(8,8,8,.97); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 28px; text-align: center; }
+#gps-err.show { display: flex; }
+.err-icon { font-size: 38px; }
+.err-title { font-size: 14px; letter-spacing: 3px; color: #ff2200; }
+.err-desc { font-size: 11px; color: #555; line-height: 1.8; max-width: 270px; }
+.err-steps { text-align: left; background: #0f0f0f; border: 1px solid #1e1e1e; padding: 12px 16px; width: 100%; max-width: 270px; }
+.err-steps li { font-size: 10px; color: #444; line-height: 2.1; list-style: none; }
+.err-steps li::before { content: '→ '; color: #333; }
+.retry-btn { padding: 10px 28px; background: transparent; border: 1px solid #2a2a2a; color: #666; font-family: monospace; font-size: 10px; letter-spacing: 3px; cursor: pointer; }
+.retry-btn:hover { border-color: #ff2200; color: #ff6644; }
+
+.my-dot    { width: 16px; height: 16px; border-radius: 50%; background: #ff2200; border: 3px solid white; box-shadow: 0 0 10px rgba(255,34,0,.8); }
+.other-dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid white; }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <!-- GPS PERMISSION SCREEN -->
+  <div id="gps-prompt">
+    <div class="gps-icon">📍</div>
+    <div class="gps-title">LOCATION ACCESS</div>
+    <div class="gps-desc">This app needs your GPS to place you on the live map and share your position with others in real time.</div>
+    <div class="name-row">
+      <input id="inp-name" placeholder="YOUR NAME" maxlength="12" autofocus
+             onkeydown="if(event.key==='Enter') requestGPS()"/>
+    </div>
+    <button class="go-btn" onclick="requestGPS()">📍 Enable GPS &amp; Join Map</button>
+    <div class="gps-note">Your browser will show a permission popup — tap Allow to continue. Your location is only shared while this page is open.</div>
+  </div>
+
+  <!-- GPS ERROR SCREEN -->
+  <div id="gps-err">
+    <div class="err-icon">🚫</div>
+    <div class="err-title" id="err-ttl">GPS BLOCKED</div>
+    <div class="err-desc" id="err-dsc">Location access was denied.</div>
+    <ul class="err-steps" id="err-list"></ul>
+    <button class="retry-btn" onclick="retryGPS()">↩ Try Again</button>
+  </div>
+
+  <div id="topbar">
+    <h1>GEOTEST · LIVE MAP</h1>
+    <div class="sdot" id="dot-gps"></div><span class="slbl">GPS</span>
+    <div class="sdot" id="dot-db"></div><span class="slbl">DB</span>
+  </div>
+
+  <div id="map"></div>
+  <div id="users-bar"><span class="upill" style="color:#333;border-color:#1e1e1e;">Waiting for others...</span></div>
+  <div id="debuglog"><span class="dim">Ready — enter name and press GO</span></div>
+
+</div>
+<script>
+const SB_URL = 'https://jootvxinokfwffkdhony.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvb3R2eGlub2tmd2Zma2Rob255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDEyMTcsImV4cCI6MjA5MDkxNzIxN30.gJ7aDKudwWNb_WDsMUB8l375CmbD_C3O_-_EUCRmMbo';
+const COLORS = ['#44aaff','#ffaa00','#00cc55','#cc44ff','#ff6600','#00cccc','#ff44aa'];
+const PUSH_MS = 4000, STALE_MS = 30000;
+
+let myName='', myId='geo_'+Math.random().toString(36).slice(2,8);
+let myLat=null, myLng=null, myAcc=null;
+let watchId=null, timer=null;
+let myMarker=null, myCircle=null;
+let others={}, map=null, centered=false, dbOk=false;
+
+document.addEventListener('DOMContentLoaded', () => {
+  map = L.map('map').setView([55.676,12.568],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap', maxZoom:19
+  }).addTo(map);
+  dbg('Map ready. Enter your name above.','dim');
+});
+
+function requestGPS() {
+  const el = document.getElementById('inp-name');
+  myName = (el ? el.value.trim().toUpperCase() : '') || 'ANON';
+  if (!navigator.geolocation) {
+    showErr('NOT SUPPORTED','Your browser does not support GPS location.',
+      ['Use Chrome or Safari on a phone','Desktop browsers may lack GPS']);
+    return;
+  }
+  document.getElementById('gps-prompt').classList.add('hidden');
+  setDot('gps','searching');
+  dbg(`Requesting GPS for ${myName}...`,'inf');
+  watchId = navigator.geolocation.watchPosition(onPos, onErr,
+    {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
+  timer = setInterval(pullOthers, PUSH_MS);
+  setTimeout(pullOthers, 600);
+}
+
+function retryGPS() {
+  document.getElementById('gps-err').classList.remove('show');
+  document.getElementById('gps-prompt').classList.remove('hidden');
+}
+
+function onPos(pos) {
+  myLat = pos.coords.latitude;
+  myLng = pos.coords.longitude;
+  myAcc = Math.round(pos.coords.accuracy);
+  setDot('gps','live');
+  dbg(`GPS ✓  ${myLat.toFixed(5)}, ${myLng.toFixed(5)}  ±${myAcc}m`,'ok');
+
+  if (!myMarker) {
+    const icon = L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
+      html:'<div class="my-dot"></div>'});
+    myMarker = L.marker([myLat,myLng],{icon,zIndexOffset:1000})
+      .addTo(map).bindPopup(`<b>${myName}</b><br><i>You</i>`);
+  } else {
+    myMarker.setLatLng([myLat,myLng]);
+  }
+
+  if (!myCircle) {
+    myCircle = L.circle([myLat,myLng],{radius:myAcc,
+      color:'#ff2200',fillColor:'#ff2200',fillOpacity:.07,weight:1}).addTo(map);
+  } else {
+    myCircle.setLatLng([myLat,myLng]).setRadius(myAcc);
+  }
+
+  if (!centered) { map.setView([myLat,myLng],17); centered=true;
+    dbg('Map centered on your position.','inf'); }
+
+  pushPos();
+}
+
+function onErr(e) {
+  setDot('gps','err');
+  if (e.code===1) {
+    showErr('ACCESS DENIED',
+      'Location permission was blocked. To fix this:',
+      ['iPhone: Settings → Safari → Location → Allow',
+       'Android: Settings → Apps → Browser → Permissions → Location → Allow',
+       'Chrome desktop: click the 🔒 icon in address bar → Allow Location',
+       'Then reload this page and try again']);
+  } else if (e.code===2) {
+    dbg('✗ GPS signal unavailable — move to open area','err');
+  } else {
+    dbg('✗ GPS timeout — retrying...','err');
+  }
+}
+
+function showErr(title, desc, steps) {
+  document.getElementById('gps-prompt').classList.add('hidden');
+  document.getElementById('err-ttl').textContent = title;
+  document.getElementById('err-dsc').textContent = desc;
+  document.getElementById('err-list').innerHTML = steps.map(s=>`<li>${s}</li>`).join('');
+  document.getElementById('gps-err').classList.add('show');
+}
+
+async function sb(path, method='GET', body=null) {
+  const r = await fetch(SB_URL+'/rest/v1/'+path, {
+    method,
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
+      'Content-Type':'application/json',
+      'Prefer':method==='POST'?'resolution=merge-duplicates':''},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!r.ok) { const t=await r.text(); throw new Error(r.status+' '+t.slice(0,100)); }
+  return method==='GET' ? r.json() : r;
+}
+
+async function pushPos() {
+  if (myLat===null) return;
+  try {
+    await sb('positions','POST',[{
+      id:myId, name:myName, code:myId, color:'#ff2200', avatar:'📍',
+      x:myLat, y:myLng, status:'', status_expiry:0, updated_at:Date.now()
+    }]);
+    if (!dbOk) { dbOk=true; setDot('db','live'); dbg('Database ✓ Connected','ok'); }
+  } catch(e) {
+    setDot('db','err');
+    dbg('DB error: '+e.message,'err');
+    if (e.message.includes('42P01')||e.message.includes('404')||e.message.includes('relation')) {
+      dbg('→ TABLE MISSING — run the SQL setup in Supabase first','err');
+    }
+  }
+}
+
+async function pullOthers() {
+  if (myLat!==null) pushPos();
+  try {
+    const data = await sb('positions?select=*');
+    const now = Date.now();
+    const bar = document.getElementById('users-bar');
+    const pills=[], seen=new Set();
+    data.forEach((p,i) => {
+      if (p.id===myId) return;
+      if (now-p.updated_at > STALE_MS) {
+        if (others[p.id]) { map.removeLayer(others[p.id].m); delete others[p.id]; }
+        return;
+      }
+      const lat=parseFloat(p.x), lng=parseFloat(p.y);
+      if (!lat||!lng||isNaN(lat)||isNaN(lng)) return;
+      seen.add(p.id);
+      const col = COLORS[i % COLORS.length];
+      if (!others[p.id]) {
+        const icon = L.divIcon({className:'',iconSize:[13,13],iconAnchor:[6,6],
+          html:`<div class="other-dot" style="background:${col};box-shadow:0 0 7px ${col};"></div>`});
+        const m = L.marker([lat,lng],{icon}).addTo(map).bindPopup(`<b>${p.name}</b>`);
+        others[p.id]={m,col};
+        dbg(`${p.name} joined the map`,'inf');
+      } else {
+        others[p.id].m.setLatLng([lat,lng]);
+      }
+      const age=Math.round((now-p.updated_at)/1000);
+      pills.push(`<div class="upill" style="color:${col};border-color:${col}55;">${p.name} · ${age}s ago</div>`);
+    });
+    Object.keys(others).forEach(id => {
+      if (!seen.has(id)) { map.removeLayer(others[id].m); delete others[id]; }
+    });
+    if (bar) bar.innerHTML = pills.length
+      ? pills.join('')
+      : '<span class="upill" style="color:#333;border-color:#1e1e1e;">No other users yet — open on another device</span>';
+  } catch(e) {
+    setDot('db','err');
+    dbg('Pull error: '+e.message,'err');
+  }
+}
+
+function setDot(which, state) {
+  const d = document.getElementById('dot-'+which);
+  if (d) d.className = 'sdot ' + (state==='live'?'live':state==='err'?'err':state==='searching'?'searching':'');
+}
+
+function dbg(msg, cls='dim') {
+  const el = document.getElementById('debuglog');
+  if (!el) return;
+  const s = document.createElement('span');
+  s.className=cls; s.textContent=msg;
+  el.appendChild(s); el.scrollTop=el.scrollHeight;
+  while (el.children.length>30) el.removeChild(el.firstChild);
+}
+
+async function cleanup() { try { await sb(`positions?id=eq.${myId}`,'DELETE'); } catch(e){} }
+window.addEventListener('beforeunload', cleanup);
+</script>
+</body>
+</html>
