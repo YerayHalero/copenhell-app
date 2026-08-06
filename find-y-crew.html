@@ -1128,7 +1128,7 @@ function confirmRemove(code,name){
   document.getElementById('conf-yes').onclick=()=>doRemove(code);
   document.getElementById('confirm').classList.add('show');
 }
-async async function doRemove(code){
+async function doRemove(code){
   hideConfirm();
   const fid=[MY_CODE,code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
   try { await sb(`friendships?id=eq.${fid}`,'DELETE'); } catch(e){}
