@@ -290,11 +290,12 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
 <body>
 
 <!-- SPLASH -->
-<div id="splash">
+<div id="splash" onclick="skipSplash()">
   <div class="spl-wordmark">Find Y Crew</div>
   <div class="spl-title">FYC</div>
   <div class="spl-sub">Find Your Crew · Live</div>
   <div class="spl-bar"><div class="spl-fill"></div></div>
+  <div style="position:absolute;bottom:24px;font-size:9px;color:#333;letter-spacing:3px;font-family:var(--font-m);">TAP TO SKIP</div>
 </div>
 
 <!-- ONBOARDING -->
@@ -474,6 +475,24 @@ const OB_TOTAL=4;
 // ════════════════════════════════════════════════════════════════════════════
 // SPLASH → SETUP
 // ════════════════════════════════════════════════════════════════════════════
+function skipSplash() {
+  const s = document.getElementById('splash');
+  if (!s || s.classList.contains('gone')) return;
+  s.style.transition = 'opacity 0.3s';
+  s.style.opacity = '0';
+  setTimeout(() => {
+    s.classList.add('gone');
+    s.style.display = 'none';
+    checkReturning();
+    const ob = document.getElementById('onboard');
+    if (ob) ob.classList.add('show');
+    else {
+      const setup = document.getElementById('setup');
+      if (setup) setup.classList.add('show');
+    }
+  }, 300);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initLeafMap();
   buildColorGrid();
@@ -491,13 +510,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setTimeout(() => {
     const s = document.getElementById('splash');
+    if (!s) return;
     s.classList.add('out');
     setTimeout(() => {
       s.classList.add('gone');
+      s.style.display = 'none';
       checkReturning();
-      document.getElementById('onboard').classList.add('show');
-    }, 650);
-  }, 2300);
+      const ob = document.getElementById('onboard');
+      const setup = document.getElementById('setup');
+      if (ob) { ob.classList.add('show'); }
+      else if (setup) { setup.classList.add('show'); }
+    }, 600);
+  }, 2000);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
