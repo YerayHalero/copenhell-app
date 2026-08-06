@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Find Y Crew</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg:     #f5f3ee;
+  --bg2:    #ede9e1;
+  --bg3:    #e4dfd5;
+  --ink:    #1a1814;
+  --ink2:   #4a4640;
+  --ink3:   #8a8278;
+  --accent: #ff4500;
+  --acc2:   #ff6a35;
+  --green:  #1a7a3c;
+  --amber:  #cc7700;
+  --blue:   #1155cc;
+  --border: rgba(26,24,20,.1);
+  --border2:rgba(26,24,20,.18);
+  --font-d: 'Syne', sans-serif;
+  --font-m: 'Syne Mono', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--font-d);}
+
+/* ── SPLASH ─────────────────────────────────────────────────────────────── */
+#splash{position:fixed;inset:0;z-index:4000;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+#splash.out{animation:splOut .65s ease forwards;}
+#splash.gone{display:none;}
+@keyframes splOut{to{opacity:0;transform:scale(1.03);}}
+.spl-wordmark{font-size:13px;font-weight:800;letter-spacing:6px;color:var(--bg);text-transform:uppercase;animation:fadeUp .7s ease forwards;opacity:0;}
+.spl-title{font-size:44px;font-weight:800;color:var(--accent);letter-spacing:-1px;animation:fadeUp .7s .15s ease forwards;opacity:0;line-height:1;}
+.spl-sub{font-family:var(--font-m);font-size:11px;color:#666;letter-spacing:3px;animation:fadeUp .5s .3s ease forwards;opacity:0;margin-bottom:32px;}
+.spl-bar{width:120px;height:2px;background:#2a2a2a;overflow:hidden;animation:fadeUp .4s .4s ease forwards;opacity:0;}
+.spl-fill{height:2px;width:0;background:var(--accent);animation:barW 1.5s .5s ease forwards;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@keyframes barW{0%{width:0;}60%{width:75%;}100%{width:100%;}}
+
+/* ── ONBOARDING ──────────────────────────────────────────────────────────── */
+#onboard{position:fixed;inset:0;z-index:3000;background:var(--bg);display:none;flex-direction:column;}
+#onboard.show{display:flex;}
+.ob-slides{flex:1;position:relative;overflow:hidden;}
+.ob-slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;text-align:center;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .4s;}
+.ob-slide.prev{transform:translateX(-100%);opacity:0;pointer-events:none;}
+.ob-slide.curr{transform:none;opacity:1;}
+.ob-slide.next{transform:translateX(100%);opacity:0;pointer-events:none;}
+.ob-icon{font-size:56px;margin-bottom:20px;}
+.ob-title{font-size:26px;font-weight:800;color:var(--ink);margin-bottom:10px;letter-spacing:-0.5px;}
+.ob-body{font-size:14px;color:var(--ink2);line-height:1.85;max-width:290px;}
+.ob-accent{color:var(--accent);font-weight:700;}
+.ob-dots{display:flex;gap:6px;justify-content:center;padding:14px;}
+.ob-dot{width:6px;height:6px;border-radius:50%;background:var(--bg3);transition:all .2s;}
+.ob-dot.on{width:20px;border-radius:3px;background:var(--accent);}
+.ob-footer{padding:14px 24px 28px;display:flex;gap:10px;}
+.ob-skip{flex:1;padding:13px;background:transparent;border:1.5px solid var(--border2);color:var(--ink3);font-family:var(--font-d);font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;}
+.ob-next{flex:2;padding:13px;background:var(--accent);border:none;color:white;font-family:var(--font-d);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:background .15s;}
+.ob-next:hover{background:var(--acc2);}
+
+/* ── SETUP SCREEN ────────────────────────────────────────────────────────── */
+#setup{position:fixed;inset:0;z-index:2500;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px;}
+#setup.show{display:flex;}
+.setup-card{width:100%;max-width:340px;display:flex;flex-direction:column;gap:16px;}
+.setup-wordmark{font-size:11px;font-weight:700;letter-spacing:5px;color:var(--ink3);text-transform:uppercase;text-align:center;margin-bottom:4px;}
+.setup-title{font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-0.5px;text-align:center;}
+.setup-step{display:none;flex-direction:column;gap:12px;}
+.setup-step.on{display:flex;}
+.setup-label{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--ink3);}
+.setup-input{width:100%;background:white;border:1.5px solid var(--border2);color:var(--ink);font-family:var(--font-d);font-size:16px;font-weight:600;padding:12px 14px;outline:none;border-radius:2px;letter-spacing:1px;text-transform:uppercase;}
+.setup-input:focus{border-color:var(--accent);}
+.setup-input::placeholder{color:var(--ink3);text-transform:none;font-weight:400;letter-spacing:0;}
+.color-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
+.cswatch{aspect-ratio:1;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;}
+.cswatch.on{border-color:var(--ink);transform:scale(1.15);}
+.avatar-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.av-opt{aspect-ratio:1;background:white;border:1.5px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;border-radius:4px;transition:all .15s;}
+.av-opt.on{border-color:var(--accent);background:rgba(255,69,0,.06);}
+.preview-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:white;border:1.5px solid var(--border);}
+.prev-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.prev-name{font-size:14px;font-weight:700;letter-spacing:1px;}
+.prev-code{font-family:var(--font-m);font-size:10px;color:var(--ink3);margin-top:2px;}
+.setup-btn{padding:14px;background:var(--accent);border:none;color:white;font-family:var(--font-d);font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:background .15s;width:100%;}
+.setup-btn:hover{background:var(--acc2);}
+.setup-err{font-size:11px;color:var(--accent);font-family:var(--font-m);display:none;text-align:center;}
+.return-card{background:rgba(26,122,60,.07);border:1.5px solid rgba(26,122,60,.25);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:2px;transition:all .15s;}
+.return-card:hover{background:rgba(26,122,60,.12);}
+.ret-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.ret-name{font-size:13px;font-weight:700;color:var(--green);}
+.ret-sub{font-size:10px;color:var(--ink3);font-family:var(--font-m);}
+.or-line{text-align:center;font-size:10px;color:var(--ink3);font-family:var(--font-m);letter-spacing:2px;}
+
+/* ── GPS ERROR ───────────────────────────────────────────────────────────── */
+#gps-err{position:fixed;inset:0;z-index:3500;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center;}
+#gps-err.show{display:flex;}
+.ge-icon{font-size:42px;}
+.ge-title{font-size:18px;font-weight:800;color:var(--accent);}
+.ge-body{font-size:12px;color:var(--ink2);line-height:1.85;max-width:280px;}
+.ge-steps{text-align:left;background:white;border:1.5px solid var(--border);padding:12px 16px;width:100%;max-width:280px;border-radius:2px;}
+.ge-steps li{font-size:11px;color:var(--ink2);line-height:2.1;list-style:none;padding-left:12px;}
+.ge-steps li::before{content:'→ ';color:var(--ink3);}
+.ge-btn{padding:11px 28px;background:transparent;border:1.5px solid var(--border2);color:var(--ink2);font-family:var(--font-d);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;}
+.ge-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── APP ─────────────────────────────────────────────────────────────────── */
+#app{display:none;flex-direction:column;height:100vh;}
+#app.show{display:flex;}
+
+/* HEADER */
+#hdr{flex-shrink:0;background:var(--ink);padding:0 16px;display:flex;align-items:center;gap:10px;height:50px;}
+.hdr-logo{font-size:16px;font-weight:800;color:white;letter-spacing:-0.3px;flex:1;}
+.hdr-logo span{color:var(--accent);}
+.hdr-badge{font-size:9px;font-weight:700;letter-spacing:2px;padding:3px 8px;border-radius:2px;text-transform:uppercase;font-family:var(--font-m);}
+.hb-fan{background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);}
+.hb-admin{background:rgba(255,69,0,.2);color:var(--acc2);}
+.conn-pill{display:flex;align-items:center;gap:5px;font-size:9px;font-family:var(--font-m);color:rgba(255,255,255,.4);letter-spacing:1px;}
+.conn-dot{width:6px;height:6px;border-radius:50%;background:#333;}
+.conn-dot.live{background:var(--green);box-shadow:0 0 5px var(--green);animation:blink 2s infinite;}
+.conn-dot.err{background:var(--accent);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+#main{flex:1;display:flex;overflow:hidden;}
+
+/* MAP */
+#map-wrap{flex:1;position:relative;overflow:hidden;}
+#map{width:100%;height:100%;}
+.map-btn-grp{position:absolute;bottom:12px;right:12px;z-index:30;display:flex;flex-direction:column;gap:4px;}
+.map-btn{width:32px;height:32px;background:white;border:1.5px solid var(--border2);color:var(--ink);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.map-btn:hover{background:var(--bg2);}
+#locate-btn{position:absolute;bottom:56px;right:12px;z-index:30;background:var(--accent);border:none;color:white;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;cursor:pointer;font-family:var(--font-d);font-weight:700;border-radius:2px;}
+#map-mode-btn{position:absolute;top:10px;right:10px;z-index:30;background:white;border:1.5px solid var(--border2);color:var(--ink2);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;cursor:pointer;font-family:var(--font-d);font-weight:600;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+
+/* MEET PIN */
+.meetpin{position:absolute;transform:translate(-50%,-100%);z-index:25;cursor:pointer;pointer-events:all;}
+.meetpin-flag{background:var(--accent);color:white;font-size:9px;letter-spacing:2px;padding:4px 8px;font-family:var(--font-d);font-weight:700;white-space:nowrap;border-radius:2px;}
+.meetpin-stem{width:2px;height:8px;background:var(--accent);margin:0 auto;}
+
+/* STATUS BUBBLE */
+.status-bar{position:absolute;top:-24px;left:50%;transform:translateX(-50%);pointer-events:none;white-space:nowrap;}
+.status-bub{background:var(--ink);color:white;font-size:9px;font-family:var(--font-m);padding:3px 7px;border-radius:2px;letter-spacing:.5px;}
+
+/* SIDEBAR */
+#sidebar{width:260px;flex-shrink:0;background:white;border-left:1.5px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+#tabs{display:flex;border-bottom:1.5px solid var(--border);flex-shrink:0;}
+.tab{flex:1;padding:11px 4px;text-align:center;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-panel{display:none;flex-direction:column;flex:1;overflow-y:auto;padding:14px;gap:11px;}
+.tab-panel.on{display:flex;}
+.tab-panel::-webkit-scrollbar{width:2px;}
+.tab-panel::-webkit-scrollbar-thumb{background:var(--bg3);}
+
+/* SIDEBAR COMPONENTS */
+.slabel{font-size:8px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--ink3);margin-bottom:5px;}
+.profile-box{background:var(--bg);border:1.5px solid var(--border);padding:14px;text-align:center;}
+.p-av{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid;}
+.p-name{font-size:14px;font-weight:800;letter-spacing:1px;}
+.p-code{font-family:var(--font-m);font-size:16px;letter-spacing:4px;color:var(--ink);margin:2px 0;}
+.p-hint{font-size:9px;color:var(--ink3);font-family:var(--font-m);}
+.copy-btn{margin-top:8px;width:100%;padding:7px;background:transparent;border:1.5px solid var(--border2);color:var(--ink3);font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;font-family:var(--font-d);transition:all .15s;border-radius:2px;}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent);}
+.f-card{background:var(--bg);border:1.5px solid var(--border);padding:9px 11px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:all .15s;border-radius:2px;}
+.f-card:hover,.f-card.sel{background:white;border-color:var(--border2);}
+.f-card.sel{border-color:var(--accent);}
+.fa{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:1.5px solid;}
+.fi{flex:1;min-width:0;}
+.fn{font-size:13px;font-weight:700;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fz{font-size:9px;color:var(--ink3);font-family:var(--font-m);margin-top:1px;}
+.fst{font-size:9px;font-family:var(--font-m);color:var(--amber);margin-top:2px;font-style:italic;}
+.f-card-actions{display:none;gap:4px;margin-top:6px;}
+.f-card:hover .f-card-actions,.f-card.sel .f-card-actions{display:flex;}
+.f-act{font-size:9px;padding:3px 8px;background:transparent;border:1.5px solid var(--border);color:var(--ink3);cursor:pointer;letter-spacing:1px;text-transform:uppercase;font-family:var(--font-d);font-weight:600;border-radius:2px;transition:all .15s;}
+.f-act:hover{border-color:var(--border2);color:var(--ink);}
+.f-rem{border-color:rgba(255,69,0,.25);color:rgba(255,69,0,.6);}
+.f-rem:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,69,0,.04);}
+.add-form{background:var(--bg);border:1.5px solid var(--border);padding:11px;border-radius:2px;}
+.add-form input{width:100%;background:white;border:1.5px solid var(--border);color:var(--ink);font-family:var(--font-m);font-size:14px;letter-spacing:3px;padding:8px 10px;outline:none;text-transform:uppercase;margin-bottom:7px;border-radius:2px;}
+.add-form input:focus{border-color:var(--accent);}
+.add-form input::placeholder{color:var(--ink3);font-size:10px;letter-spacing:1px;text-transform:none;}
+.add-btn{width:100%;padding:9px;background:var(--accent);border:none;color:white;font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:background .15s;}
+.add-btn:hover{background:var(--acc2);}
+.pend-card{background:rgba(204,119,0,.06);border:1.5px solid rgba(204,119,0,.25);padding:10px 12px;border-radius:2px;}
+.pend-name{font-size:13px;font-weight:700;color:var(--amber);}
+.pend-sub{font-size:9px;color:var(--ink3);font-family:var(--font-m);margin:2px 0 8px;}
+.pend-btns{display:flex;gap:6px;}
+.acc-btn{flex:1;padding:5px;background:rgba(26,122,60,.08);border:1.5px solid rgba(26,122,60,.3);color:var(--green);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:var(--font-d);border-radius:2px;}
+.dec-btn{flex:1;padding:5px;background:transparent;border:1.5px solid var(--border);color:var(--ink3);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:var(--font-d);border-radius:2px;}
+.zone-card{background:var(--bg);border:1.5px solid var(--border);padding:9px 11px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:all .15s;border-radius:2px;}
+.zone-card:hover{background:white;}
+.zi{font-size:17px;width:28px;text-align:center;flex-shrink:0;}
+.zn{font-size:11px;font-weight:700;letter-spacing:1px;}
+.zd{font-size:9px;color:var(--ink3);margin-top:1px;font-family:var(--font-m);}
+
+/* STATUS COMPOSE */
+.status-compose{background:var(--bg);border:1.5px solid var(--border);padding:11px;border-radius:2px;}
+.status-compose input{width:100%;background:white;border:1.5px solid var(--border);color:var(--ink);font-family:var(--font-d);font-size:12px;padding:8px 10px;outline:none;margin-bottom:7px;border-radius:2px;}
+.status-compose input:focus{border-color:var(--amber);}
+.emoji-row{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;}
+.em-opt{font-size:18px;cursor:pointer;padding:4px;background:white;border:1.5px solid var(--border);border-radius:3px;transition:all .15s;}
+.em-opt:hover,.em-opt.on{background:rgba(204,119,0,.08);border-color:var(--amber);}
+.status-send{width:100%;padding:8px;background:rgba(204,119,0,.1);border:1.5px solid rgba(204,119,0,.35);color:var(--amber);font-family:var(--font-d);font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:2px;}
+.active-status{background:rgba(204,119,0,.06);border:1.5px solid rgba(204,119,0,.2);padding:9px 12px;display:flex;align-items:center;gap:8px;border-radius:2px;}
+.as-txt{flex:1;font-size:11px;font-family:var(--font-m);color:var(--amber);}
+.as-clr{font-size:11px;color:var(--ink3);cursor:pointer;padding:2px 4px;}
+.as-clr:hover{color:var(--accent);}
+
+/* PRIVACY TOGGLES */
+.priv-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.priv-row:last-child{border-bottom:none;}
+.priv-lbl{flex:1;font-size:12px;font-weight:600;}
+.priv-sub{font-size:9px;color:var(--ink3);font-family:var(--font-m);margin-top:1px;}
+.toggle{width:36px;height:20px;background:var(--bg3);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:1.5px solid var(--border);}
+.toggle.on{background:var(--green);border-color:var(--green);}
+.toggle::after{content:'';position:absolute;width:13px;height:13px;background:white;border-radius:50%;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle.on::after{transform:translateX(16px);}
+
+/* ADMIN DASHBOARD */
+.admin-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-box{background:var(--bg);border:1.5px solid var(--border);padding:12px;text-align:center;border-radius:2px;}
+.stat-num{font-size:26px;font-weight:800;}
+.stat-lbl{font-size:8px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--ink3);margin-top:2px;}
+.sn-green{color:var(--green);}
+.sn-amber{color:var(--amber);}
+.sn-blue{color:var(--blue);}
+.sn-ink{color:var(--ink);}
+.user-row{background:var(--bg);border:1.5px solid var(--border);padding:9px 11px;display:flex;align-items:center;gap:8px;cursor:pointer;border-radius:2px;transition:all .15s;margin-bottom:4px;}
+.user-row:hover{background:white;}
+.ur-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.ur-name{font-size:12px;font-weight:700;flex:1;}
+.ur-info{font-size:9px;color:var(--ink3);font-family:var(--font-m);}
+.ur-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.export-btn{width:100%;padding:10px;background:var(--ink);border:none;color:white;font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:background .15s;}
+.export-btn:hover{background:var(--ink2);}
+
+/* TOAST */
+#toast-wrap{position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:90%;max-width:320px;}
+.toast{background:var(--ink);color:white;font-size:11px;font-family:var(--font-m);padding:9px 14px;display:flex;align-items:flex-start;gap:9px;width:100%;animation:toastIn .25s ease;border-radius:2px;pointer-events:all;border-left:3px solid var(--accent);}
+.toast.t-green{border-left-color:var(--green);}
+.toast.t-amber{border-left-color:var(--amber);}
+.toast.t-blue{border-left-color:var(--blue);}
+.toast.hiding{animation:toastOut .25s ease forwards;}
+@keyframes toastIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-6px);}}
+.t-ico{font-size:13px;flex-shrink:0;}
+.t-txt{flex:1;}
+.t-ttl{font-weight:700;font-size:11px;margin-bottom:1px;}
+.t-bdy{font-size:10px;color:rgba(255,255,255,.6);}
+.t-x{color:rgba(255,255,255,.4);cursor:pointer;font-size:12px;}
+.t-x:hover{color:white;}
+
+/* CONFIRM */
+#confirm{position:fixed;inset:0;z-index:800;display:none;align-items:center;justify-content:center;background:rgba(26,24,20,.5);}
+#confirm.show{display:flex;}
+.conf-box{background:white;border:1.5px solid var(--border2);padding:24px;width:270px;border-radius:2px;}
+.conf-ttl{font-size:15px;font-weight:800;margin-bottom:6px;}
+.conf-bdy{font-size:11px;color:var(--ink2);font-family:var(--font-m);margin-bottom:18px;line-height:1.7;}
+.conf-btns{display:flex;gap:8px;}
+.conf-yes{flex:1;padding:10px;background:var(--accent);border:none;color:white;font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;}
+.conf-no{flex:1;padding:10px;background:transparent;border:1.5px solid var(--border2);color:var(--ink2);font-family:var(--font-d);font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;}
+
+/* QR */
+#qr-overlay{position:fixed;inset:0;z-index:700;display:none;align-items:center;justify-content:center;background:rgba(26,24,20,.6);}
+#qr-overlay.show{display:flex;}
+.qr-box{background:white;border:1.5px solid var(--border2);width:300px;border-radius:2px;overflow:hidden;}
+.qr-hdr{background:var(--ink);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.qr-ttl{font-size:13px;font-weight:800;color:white;letter-spacing:1px;}
+.qr-x{color:rgba(255,255,255,.4);cursor:pointer;font-size:16px;}
+.qr-x:hover{color:white;}
+.qr-body{padding:20px;text-align:center;}
+.qr-wrap{background:white;border:1.5px solid var(--border);padding:10px;display:inline-block;margin-bottom:12px;}
+.qr-url{font-family:var(--font-m);font-size:9px;color:var(--ink3);word-break:break-all;margin-bottom:12px;}
+.qr-acts{display:flex;gap:8px;}
+.qr-dl{flex:1;padding:9px;background:var(--ink);border:none;color:white;font-family:var(--font-d);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;}
+.qr-cp{flex:1;padding:9px;background:transparent;border:1.5px solid var(--border2);color:var(--ink2);font-family:var(--font-d);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;}
+#qr-btn{background:transparent;border:1.5px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:5px 9px;cursor:pointer;font-family:var(--font-d);border-radius:2px;transition:all .15s;}
+#qr-btn:hover{border-color:rgba(255,255,255,.3);color:white;}
+
+/* MAP MODES */
+#custom-map-layer{position:absolute;inset:0;z-index:5;pointer-events:none;display:none;}
+#custom-map-layer img{width:100%;height:100%;object-fit:contain;}
+
+@media(max-width:600px){
+  #sidebar{width:100%;max-height:44vh;border-left:none;border-top:1.5px solid var(--border);}
+  #main{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="spl-wordmark">Find Y Crew</div>
+  <div class="spl-title">FYC</div>
+  <div class="spl-sub">Find Your Crew · Live</div>
+  <div class="spl-bar"><div class="spl-fill"></div></div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="onboard">
+  <div class="ob-slides">
+    <div class="ob-slide curr" data-i="0">
+      <div class="ob-icon">🗺️</div>
+      <div class="ob-title">Find Your Crew</div>
+      <div class="ob-body">See your friends on a <span class="ob-accent">live map</span> wherever you are. No app download. Just open the link.</div>
+    </div>
+    <div class="ob-slide next" data-i="1">
+      <div class="ob-icon">🔒</div>
+      <div class="ob-title">Private by Design</div>
+      <div class="ob-body">Only people <span class="ob-accent">you accept</span> can see your position. Share your code — not your location.</div>
+    </div>
+    <div class="ob-slide next" data-i="2">
+      <div class="ob-icon">⚡</div>
+      <div class="ob-title">Real Time</div>
+      <div class="ob-body">Positions update every few seconds. Set a <span class="ob-accent">status message</span>, drop a <span class="ob-accent">meeting point</span>, stay connected.</div>
+    </div>
+    <div class="ob-slide next" data-i="3">
+      <div class="ob-icon">📍</div>
+      <div class="ob-title">Ready?</div>
+      <div class="ob-body">We'll ask for your <span class="ob-accent">location</span> so you appear on the map. You can go invisible anytime.</div>
+    </div>
+  </div>
+  <div class="ob-dots" id="ob-dots"></div>
+  <div class="ob-footer">
+    <button class="ob-skip" onclick="obSkip()">Skip</button>
+    <button class="ob-next" id="ob-next" onclick="obNext()">Next →</button>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-wordmark">Find Y Crew</div>
+    <div class="setup-title" id="setup-title">Who are you?</div>
+    <div id="ret-banner" style="display:none;">
+      <div class="return-card" onclick="loginReturning()">
+        <div class="ret-av" id="ret-av">🙂</div>
+        <div>
+          <div class="ret-name" id="ret-name">—</div>
+          <div class="ret-sub">Continue as this user →</div>
+        </div>
+      </div>
+      <div class="or-line">— or create new —</div>
+    </div>
+    <!-- Step 0: name -->
+    <div class="setup-step on" id="st-0">
+      <div class="setup-label">Your nickname</div>
+      <input class="setup-input" id="inp-name" placeholder="e.g. Wolf, Luna, Dex..." maxlength="14"
+             onkeydown="if(event.key==='Enter')setupNext()"/>
+    </div>
+    <!-- Step 1: color -->
+    <div class="setup-step" id="st-1">
+      <div class="setup-label">Your color</div>
+      <div class="color-grid" id="color-grid"></div>
+    </div>
+    <!-- Step 2: avatar -->
+    <div class="setup-step" id="st-2">
+      <div class="setup-label">Your avatar</div>
+      <div class="avatar-grid" id="av-grid"></div>
+    </div>
+    <!-- Preview -->
+    <div class="preview-row" id="prev-row" style="display:none;">
+      <div class="prev-av" id="prev-av" style="font-size:20px;">🙂</div>
+      <div>
+        <div class="prev-name" id="prev-name">—</div>
+        <div class="prev-code" id="prev-code">—</div>
+      </div>
+    </div>
+    <div class="setup-err" id="setup-err"></div>
+    <button class="setup-btn" id="setup-btn" onclick="setupNext()">Next →</button>
+  </div>
+</div>
+
+<!-- GPS ERROR -->
+<div id="gps-err">
+  <div class="ge-icon">🚫</div>
+  <div class="ge-title" id="ge-ttl">GPS Blocked</div>
+  <div class="ge-body" id="ge-body">Location access was denied.</div>
+  <ul class="ge-steps" id="ge-list"></ul>
+  <button class="ge-btn" onclick="retryGPS()">↩ Try Again</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div id="hdr">
+    <div class="hdr-logo">Find <span>Y</span> Crew</div>
+    <button id="qr-btn" onclick="openQR()">⬛ Share</button>
+    <span class="hdr-badge" id="hdr-badge"></span>
+    <div class="conn-pill"><div class="conn-dot" id="conn-dot"></div><span id="conn-lbl">—</span></div>
+  </div>
+  <div id="main">
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div id="custom-map-layer"><img id="custom-map-img" src="" alt=""/></div>
+      <button id="map-mode-btn" onclick="toggleMapMode()">🗺 Street Map</button>
+      <div id="markers-layer" style="position:absolute;inset:0;z-index:20;pointer-events:none;"></div>
+      <div id="toast-wrap"></div>
+      <button id="locate-btn" onclick="centerOnMe()">● Me</button>
+      <div class="map-btn-grp">
+        <button class="map-btn" onclick="mapZoom(1.2)">+</button>
+        <button class="map-btn" onclick="mapZoom(0.83)">−</button>
+        <button class="map-btn" onclick="resetMapView()" style="font-size:11px;">↺</button>
+      </div>
+    </div>
+    <div id="sidebar">
+      <div id="tabs"></div>
+      <div id="tab-content" class="tab-panel on"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div id="confirm">
+  <div class="conf-box">
+    <div class="conf-ttl" id="conf-ttl">Are you sure?</div>
+    <div class="conf-bdy" id="conf-bdy"></div>
+    <div class="conf-btns">
+      <button class="conf-yes" id="conf-yes">Confirm</button>
+      <button class="conf-no" onclick="hideConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR -->
+<div id="qr-overlay">
+  <div class="qr-box">
+    <div class="qr-hdr"><span class="qr-ttl">Share Find Y Crew</span><span class="qr-x" onclick="closeQR()">✕</span></div>
+    <div class="qr-body">
+      <div class="qr-wrap"><canvas id="qr-canvas" width="200" height="200"></canvas></div>
+      <div class="qr-url" id="qr-url"></div>
+      <div class="qr-acts">
+        <button class="qr-dl" onclick="downloadQR()">↓ Download</button>
+        <button class="qr-cp" onclick="copyQRUrl()">⎘ Copy URL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════════════════════
+const SB_URL  = 'https://jootvxinokfwffkdhony.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvb3R2eGlub2tmd2Zma2Rob255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDEyMTcsImV4cCI6MjA5MDkxNzIxN30.gJ7aDKudwWNb_WDsMUB8l375CmbD_C3O_-_EUCRmMbo';
+const ADMIN_CODE = 'FINDYCREW-ADMIN-2026';
+const PUSH_MS = 4000, STALE_MS = 35000;
+const COLORS  = ['#ff4500','#0088cc','#ffaa00','#22aa55','#aa44cc','#ff3399','#00ccaa','#ff6600','#4466ff','#cc0044'];
+const AVATARS = ['🙂','🤘','🐺','🦋','⚡','🔥','💀','🌙','🦅','🐉','🎸','🏔','🌊','🎭','🦁'];
+const STATUS_EMOJIS = ['🍺','🎵','🤘','🔥','📸','😵','💃','🍕','🚽','💬'];
+const ZONES = [
+  {id:'z1',name:'Main Stage',   desc:'Front of stage area', icon:'🎸', x:.3,  y:.35},
+  {id:'z2',name:'Food Area',    desc:'Eat & drink',         icon:'🍺', x:.7,  y:.3 },
+  {id:'z3',name:'Entrance',     desc:'Main gate',           icon:'🚪', x:.5,  y:.1 },
+  {id:'z4',name:'Chill Zone',   desc:'Relax area',          icon:'🌿', x:.2,  y:.65},
+  {id:'z5',name:'Second Stage', desc:'Smaller stage',       icon:'🎤', x:.75, y:.65},
+  {id:'z6',name:'Merch',        desc:'Merchandise stand',   icon:'👕', x:.5,  y:.8 },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════════════
+let ROLE='fan', MY_NAME='', MY_CODE=genCode(), MY_COLOR=COLORS[0], MY_AVATAR=AVATARS[0];
+let myLat=null, myLng=null, watchId=null, pushTimer=null;
+let dbOk=false, centered=false, mapMode='street'; // 'street' | 'custom'
+let friends=[], pending=[], privSettings={visible:true,exact:true};
+let myStatusMsg='', myStatusExpiry=0, mySelEmoji='🍺';
+let meetPin=null, selectedFriend=null, activeTab=null;
+let leafMap=null, myLeafMarker=null, myAccCircle=null, otherLeafMarkers={};
+let allUsers=[], sessionStart=Date.now();
+let setupStep=0, obSlide=0;
+const OB_TOTAL=4;
+
+// ════════════════════════════════════════════════════════════════════════════
+// SPLASH → SETUP
+// ════════════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initLeafMap();
+  buildColorGrid();
+  buildAvatarGrid();
+  buildObDots();
+
+  // Check if name input looks like admin code
+  document.getElementById('inp-name').addEventListener('input', function() {
+    if (this.value.trim().toUpperCase() === ADMIN_CODE) {
+      this.style.borderColor = '#ff4500';
+    } else {
+      this.style.borderColor = '';
+    }
+  });
+
+  setTimeout(() => {
+    const s = document.getElementById('splash');
+    s.classList.add('out');
+    setTimeout(() => {
+      s.classList.add('gone');
+      checkReturning();
+      document.getElementById('onboard').classList.add('show');
+    }, 650);
+  }, 2300);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// ONBOARDING
+// ════════════════════════════════════════════════════════════════════════════
+function buildObDots() {
+  const d = document.getElementById('ob-dots');
+  if (!d) return;
+  d.innerHTML = Array.from({length:OB_TOTAL},(_,i)=>
+    `<div class="ob-dot${i===0?' on':''}" id="ob-d-${i}"></div>`).join('');
+}
+function obNext() {
+  if (obSlide < OB_TOTAL-1) {
+    document.querySelector(`[data-i="${obSlide}"]`).className='ob-slide prev';
+    document.getElementById('ob-d-'+obSlide).classList.remove('on');
+    obSlide++;
+    document.querySelector(`[data-i="${obSlide}"]`).className='ob-slide curr';
+    document.getElementById('ob-d-'+obSlide).classList.add('on');
+    if (obSlide===OB_TOTAL-1) document.getElementById('ob-next').textContent='Get Started →';
+  } else { obSkip(); }
+}
+function obSkip() {
+  document.getElementById('onboard').classList.remove('show');
+  document.getElementById('setup').classList.add('show');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SETUP STEPS
+// ════════════════════════════════════════════════════════════════════════════
+function buildColorGrid() {
+  const g = document.getElementById('color-grid'); if(!g) return;
+  g.innerHTML = COLORS.map((c,i)=>
+    `<div class="cswatch${i===0?' on':''}" style="background:${c};" onclick="pickColor('${c}',this)"></div>`
+  ).join('');
+}
+function buildAvatarGrid() {
+  const g = document.getElementById('av-grid'); if(!g) return;
+  g.innerHTML = AVATARS.map((a,i)=>
+    `<div class="av-opt${i===0?' on':''}" onclick="pickAvatar('${a}',this)">${a}</div>`
+  ).join('');
+}
+function pickColor(c,el) {
+  MY_COLOR=c;
+  document.querySelectorAll('.cswatch').forEach(s=>s.classList.remove('on'));
+  el.classList.add('on');
+  updatePreview();
+}
+function pickAvatar(a,el) {
+  MY_AVATAR=a;
+  document.querySelectorAll('.av-opt').forEach(s=>s.classList.remove('on'));
+  el.classList.add('on');
+  updatePreview();
+}
+function updatePreview() {
+  const nick = (document.getElementById('inp-name')||{}).value||'';
+  const row = document.getElementById('prev-row');
+  if (!row) return;
+  if (nick.length > 0 || setupStep > 0) {
+    row.style.display='flex';
+    const av = document.getElementById('prev-av');
+    const nm = document.getElementById('prev-name');
+    const cd = document.getElementById('prev-code');
+    if (av) { av.textContent=MY_AVATAR; av.style.background=MY_COLOR+'22'; av.style.borderColor=MY_COLOR; }
+    if (nm) { nm.textContent=(MY_NAME||nick).toUpperCase(); nm.style.color=MY_COLOR; }
+    if (cd) cd.textContent='Code: '+MY_CODE;
+  } else { row.style.display='none'; }
+}
+function setupNext() {
+  const btn = document.getElementById('setup-btn');
+  const title = document.getElementById('setup-title');
+  const err = document.getElementById('setup-err');
+  if (setupStep===0) {
+    const inp = document.getElementById('inp-name');
+    const val = inp ? inp.value.trim() : '';
+    // Admin login
+    if (val.toUpperCase()===ADMIN_CODE) { ROLE='admin'; MY_NAME='ADMIN'; startApp(); return; }
+    if (!val) { showSetupErr('Enter a nickname first'); return; }
+    MY_NAME = val.toUpperCase();
+    err.style.display='none';
+    goSetupStep(1);
+    if (btn) btn.textContent='Choose Avatar →';
+    if (title) title.textContent='Pick your color';
+  } else if (setupStep===1) {
+    goSetupStep(2);
+    if (btn) btn.textContent='Enter the Map →';
+    if (title) title.textContent='Pick your avatar';
+  } else if (setupStep===2) {
+    startApp();
+  }
+}
+function goSetupStep(n) {
+  document.getElementById('st-'+setupStep).classList.remove('on');
+  setupStep=n;
+  document.getElementById('st-'+n).classList.add('on');
+  updatePreview();
+}
+function showSetupErr(msg) {
+  const e=document.getElementById('setup-err');
+  if(e){e.textContent=msg;e.style.display='block';}
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// RETURNING USER
+// ════════════════════════════════════════════════════════════════════════════
+function checkReturning() {
+  try {
+    const s=localStorage.getItem('fyc_profile');
+    if(!s) return;
+    const p=JSON.parse(s);
+    if(!p.name||!p.code) return;
+    MY_CODE=p.code; MY_COLOR=p.color||COLORS[0]; MY_AVATAR=p.avatar||AVATARS[0];
+    if(p.friends) try{friends=JSON.parse(p.friends);}catch(e){}
+    const ban=document.getElementById('ret-banner');
+    const av=document.getElementById('ret-av');
+    const nm=document.getElementById('ret-name');
+    if(ban) ban.style.display='block';
+    if(av){av.textContent=MY_AVATAR;av.style.background=MY_COLOR+'22';}
+    if(nm) nm.textContent=p.name;
+  } catch(e){}
+}
+function loginReturning() {
+  try {
+    const p=JSON.parse(localStorage.getItem('fyc_profile'));
+    MY_NAME=p.name; MY_CODE=p.code; MY_COLOR=p.color||COLORS[0]; MY_AVATAR=p.avatar||AVATARS[0];
+    if(p.friends) try{friends=JSON.parse(p.friends);}catch(e){}
+  } catch(e){}
+  ROLE='fan';
+  startApp();
+}
+function saveProfile() {
+  try {
+    localStorage.setItem('fyc_profile',JSON.stringify({
+      name:MY_NAME,code:MY_CODE,color:MY_COLOR,avatar:MY_AVATAR,
+      friends:JSON.stringify(friends),savedAt:Date.now()
+    }));
+  } catch(e){}
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// START APP
+// ════════════════════════════════════════════════════════════════════════════
+function startApp() {
+  document.getElementById('setup').classList.remove('show');
+  document.getElementById('app').classList.add('show');
+  // Header
+  const badge=document.getElementById('hdr-badge');
+  if(ROLE==='admin'){badge.textContent='Admin';badge.className='hdr-badge hb-admin';}
+  else{badge.textContent=MY_NAME;badge.className='hdr-badge hb-fan';}
+  buildTabs();
+  requestGPS();
+  pushTimer=setInterval(syncPositions,PUSH_MS);
+  setInterval(()=>{if(ROLE==='fan')saveProfile();},30000);
+  setInterval(tickStatus,15000);
+  setTimeout(()=>toast('Welcome!',ROLE==='admin'?'Admin dashboard active':'Find your crew on the live map','green','👋',4000),800);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// GPS
+// ════════════════════════════════════════════════════════════════════════════
+function requestGPS() {
+  if(!navigator.geolocation){toast('GPS not supported','Use Chrome or Safari','red','🚫',4000);return;}
+  watchId=navigator.geolocation.watchPosition(onPos,onGPSErr,
+    {enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+}
+function onPos(pos) {
+  myLat=pos.coords.latitude; myLng=pos.coords.longitude;
+  setConn('gps');
+  if(ROLE==='fan'&&!privSettings.visible) return;
+  if(mapMode==='street') {
+    if(!myLeafMarker){
+      const icon=L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
+        html:`<div style="width:16px;height:16px;border-radius:50%;background:${MY_COLOR};border:3px solid white;box-shadow:0 0 8px ${MY_COLOR}88;"></div>`});
+      myLeafMarker=L.marker([myLat,myLng],{icon,zIndexOffset:1000}).addTo(leafMap)
+        .bindPopup(`<b>${ROLE==='admin'?'Admin (hidden)':MY_NAME}</b>`);
+    } else { myLeafMarker.setLatLng([myLat,myLng]); }
+    if(!myAccCircle){
+      myAccCircle=L.circle([myLat,myLng],{radius:pos.coords.accuracy,
+        color:MY_COLOR,fillColor:MY_COLOR,fillOpacity:.07,weight:1}).addTo(leafMap);
+    } else { myAccCircle.setLatLng([myLat,myLng]).setRadius(pos.coords.accuracy); }
+    if(!centered){leafMap.setView([myLat,myLng],16);centered=true;}
+  }
+}
+function onGPSErr(e) {
+  if(e.code===1){
+    document.getElementById('ge-ttl').textContent='Location Blocked';
+    document.getElementById('ge-body').textContent='To show your position, allow location access:';
+    document.getElementById('ge-list').innerHTML=[
+      'iPhone: Settings → Safari → Location → Allow',
+      'Android: Settings → Apps → Browser → Permissions → Allow',
+      'Chrome: tap 🔒 in address bar → Allow Location',
+      'Then reload the page'
+    ].map(s=>`<li>${s}</li>`).join('');
+    document.getElementById('gps-err').classList.add('show');
+  } else {
+    toast('GPS signal weak','Move to an open area','amber','📍',4000);
+  }
+}
+function retryGPS(){document.getElementById('gps-err').classList.remove('show');}
+function centerOnMe(){if(myLat&&leafMap)leafMap.setView([myLat,myLng],17);}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SUPABASE SYNC
+// ════════════════════════════════════════════════════════════════════════════
+async function sb(path,method='GET',body=null){
+  const prefer = method==='POST'?'resolution=merge-duplicates':method==='PATCH'?'return=minimal':'';
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{
+    method,
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
+      'Content-Type':'application/json',
+      ...(prefer?{'Prefer':prefer}:{})},
+    body:body?JSON.stringify(body):undefined
+  });
+  if(!r.ok){const t=await r.text();throw new Error(r.status+' '+t.slice(0,80));}
+  return method==='GET'?r.json():r;
+}
+
+async function pushMyPos(){
+  if(myLat===null||ROLE==='admin') return; // admin is invisible
+  if(!privSettings.visible) return;
+  try {
+    await sb('positions','POST',[{
+      id:MY_CODE,name:MY_NAME,code:MY_CODE,
+      color:MY_COLOR,avatar:MY_AVATAR,
+      x:myLat,y:myLng,
+      status:myStatusMsg&&Date.now()<myStatusExpiry?myStatusMsg:'',
+      status_expiry:myStatusExpiry,
+      updated_at:Date.now()
+    }]);
+    if(!dbOk){dbOk=true;setConn('live');toast('Connected','Live map active','green','✓',3000);}
+  } catch(e){ setConn('err'); }
+}
+
+async function syncPositions(){
+  await pushMyPos();
+  try {
+    const data=await sb('positions?select=*');
+    const now=Date.now();
+    allUsers=data.filter(p=>now-p.updated_at<STALE_MS);
+
+    // Update friend markers (fan mode)
+    if(ROLE==='fan'&&mapMode==='street'){
+      friends.forEach(f=>{
+        const live=data.find(p=>p.code===f.code&&now-p.updated_at<STALE_MS);
+        if(live){
+          f.zone='Online'; f.status=live.status_expiry>now?live.status:'';
+          const lat=live.x,lng=live.y;
+          if(!otherLeafMarkers[f.code]){
+            const icon=L.divIcon({className:'',iconSize:[13,13],iconAnchor:[6,6],
+              html:`<div style="width:13px;height:13px;border-radius:50%;background:${f.color||MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${f.color||MY_COLOR}88;"></div>`});
+            otherLeafMarkers[f.code]=L.marker([lat,lng],{icon}).addTo(leafMap).bindPopup(`<b>${f.name}</b>${f.status?'<br>'+f.status:''}`);
+          } else { otherLeafMarkers[f.code].setLatLng([lat,lng]); }
+        } else {
+          if(otherLeafMarkers[f.code]){leafMap.removeLayer(otherLeafMarkers[f.code]);delete otherLeafMarkers[f.code];}
+        }
+      });
+    }
+
+    // Admin sees ALL users
+    if(ROLE==='admin'&&mapMode==='street'){
+      const seen=new Set();
+      allUsers.forEach((p,i)=>{
+        seen.add(p.code);
+        const col=COLORS[i%COLORS.length];
+        if(!otherLeafMarkers[p.code]){
+          const icon=L.divIcon({className:'',iconSize:[13,13],iconAnchor:[6,6],
+            html:`<div style="width:13px;height:13px;border-radius:50%;background:${col};border:2px solid white;"></div>`});
+          otherLeafMarkers[p.code]=L.marker([p.x,p.y],{icon}).addTo(leafMap).bindPopup(`<b>${p.name}</b><br>${new Date(p.updated_at).toLocaleTimeString()}`);
+        } else { otherLeafMarkers[p.code].setLatLng([p.x,p.y]); }
+      });
+      Object.keys(otherLeafMarkers).forEach(k=>{if(!seen.has(k)){leafMap.removeLayer(otherLeafMarkers[k]);delete otherLeafMarkers[k];}});
+      if(activeTab==='admin') renderTabContent('admin');
+    }
+
+    if(ROLE==='fan'&&activeTab==='crew') renderFriendCards();
+    setConn('live');
+  } catch(e){ setConn('err'); }
+  // Poll incoming friend requests from Supabase
+  if(ROLE==='fan') await pollIncomingRequests();
+}
+
+// ── POLL INCOMING FRIEND REQUESTS FROM SUPABASE ──────────────────────────
+async function pollIncomingRequests(){
+  try {
+    // Find pending requests where I am the receiver
+    const myCodeClean = MY_CODE.replace('·','%C2%B7');
+    const data = await sb(`friendships?receiver_code=eq.${encodeURIComponent(MY_CODE)}&status=eq.pending&select=*`);
+    if(!data||!data.length) return;
+    data.forEach(async req => {
+      // Skip if already in pending or friends
+      if(pending.find(p=>p.code===req.requester_code)) return;
+      if(friends.find(f=>f.code===req.requester_code)) return;
+      // Look up their profile in positions table
+      let name = req.requester_code;
+      let color = COLORS[Math.floor(Math.random()*COLORS.length)];
+      let avatar = AVATARS[Math.floor(Math.random()*AVATARS.length)];
+      try {
+        const pos = await sb(`positions?code=eq.${encodeURIComponent(req.requester_code)}&select=*`);
+        if(pos&&pos.length) { name=pos[0].name; color=pos[0].color||color; avatar=pos[0].avatar||avatar; }
+      } catch(e){}
+      const user={id:'f_'+Date.now(),name,code:req.requester_code,color,avatar,zone:'—',status:''};
+      pending.push(user);
+      toast(name+' wants to join your crew!','Go to Crew tab to accept','amber','👥',6000);
+      if(activeTab==='crew') renderCrew(document.getElementById('tab-content'));
+    });
+  } catch(e){ console.warn('Could not poll requests:', e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LEAFLET MAP
+// ════════════════════════════════════════════════════════════════════════════
+function initLeafMap(){
+  leafMap=L.map('map',{zoomControl:false}).setView([51.5,0],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafMap);
+}
+function mapZoom(f){if(leafMap)leafMap.setZoom(leafMap.getZoom()+(f>1?1:-1));}
+function resetMapView(){if(leafMap&&myLat)leafMap.setView([myLat,myLng],16);}
+function toggleMapMode(){
+  const btn=document.getElementById('map-mode-btn');
+  const cl=document.getElementById('custom-map-layer');
+  if(mapMode==='street'){
+    mapMode='custom'; if(btn)btn.textContent='🗺 Street Map';
+    if(cl)cl.style.display='block';
+    if(leafMap)document.getElementById('map').style.opacity='.15';
+  } else {
+    mapMode='street'; if(btn)btn.textContent='🗺 Custom Map';
+    if(cl)cl.style.display='none';
+    if(leafMap)document.getElementById('map').style.opacity='1';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════════════════════
+const FAN_TABS=[{id:'crew',l:'Crew'},{id:'status',l:'Status'},{id:'zones',l:'Zones'},{id:'add',l:'Add'}];
+const ADM_TABS=[{id:'admin',l:'Live'},{id:'users',l:'Users'},{id:'zones',l:'Map'}];
+
+function buildTabs(){
+  const defs=ROLE==='admin'?ADM_TABS:FAN_TABS;
+  document.getElementById('tabs').innerHTML=defs.map(t=>
+    `<div class="tab" id="tab-${t.id}" onclick="switchTab('${t.id}')">${t.l}</div>`
+  ).join('');
+  switchTab(defs[0].id);
+}
+function switchTab(id){
+  activeTab=id;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='tab-'+id));
+  renderTabContent(id);
+}
+function renderTabContent(id){
+  const c=document.getElementById('tab-content');
+  c.innerHTML='';
+  if(id==='crew')   renderCrew(c);
+  else if(id==='status') renderFanStatus(c);
+  else if(id==='zones')  renderZones(c);
+  else if(id==='add')    renderAdd(c);
+  else if(id==='admin')  renderAdminLive(c);
+  else if(id==='users')  renderAdminUsers(c);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// FAN TABS
+// ════════════════════════════════════════════════════════════════════════════
+function renderCrew(c){
+  c.innerHTML=`
+    <div>
+      <div class="slabel">Your Profile</div>
+      <div class="profile-box">
+        <div class="p-av" style="background:${MY_COLOR}22;border-color:${MY_COLOR};">${MY_AVATAR}</div>
+        <div class="p-name" style="color:${MY_COLOR};">${MY_NAME}</div>
+        <div class="p-code">${MY_CODE}</div>
+        <div class="p-hint">Share this code with friends</div>
+        <button class="copy-btn" onclick="copyCode()">⎘ Copy Code</button>
+      </div>
+    </div>
+    <div id="pend-sec" style="display:none;"><div class="slabel">Pending</div><div id="pend-list"></div></div>
+    <div><div class="slabel">Your Crew (<span id="crew-ct">${friends.length}</span>)</div><div id="friends-list"></div></div>
+    <div>
+      <div class="slabel">Privacy</div>
+      <div style="background:var(--bg);border:1.5px solid var(--border);padding:10px 12px;border-radius:2px;">
+        <div class="priv-row">
+          <div><div class="priv-lbl">Visible on map</div><div class="priv-sub">Friends can see your position</div></div>
+          <div class="toggle ${privSettings.visible?'on':''}" onclick="togglePriv('visible',this)"></div>
+        </div>
+        <div class="priv-row">
+          <div><div class="priv-lbl">Exact position</div><div class="priv-sub">Off = zone only</div></div>
+          <div class="toggle ${privSettings.exact?'on':''}" onclick="togglePriv('exact',this)"></div>
+        </div>
+      </div>
+    </div>`;
+  renderFriendCards();
+  renderPending();
+}
+
+function renderFriendCards(){
+  const list=document.getElementById('friends-list');
+  const ct=document.getElementById('crew-ct');
+  if(!list) return;
+  if(ct) ct.textContent=friends.length;
+  if(!friends.length){
+    list.innerHTML=`<div style="font-size:10px;color:var(--ink3);font-family:var(--font-m);text-align:center;padding:16px 0;line-height:1.8;">No crew yet.<br>Go to Add tab.</div>`;
+    return;
+  }
+  list.innerHTML=friends.map(f=>`
+    <div class="f-card ${selectedFriend===f.code?'sel':''}" onclick="focusFriend('${f.code}')">
+      <div class="fa" style="background:${f.color||MY_COLOR}22;border-color:${f.color||MY_COLOR};">${f.avatar||'🙂'}</div>
+      <div class="fi">
+        <div class="fn" style="color:${f.color||MY_COLOR};">${f.name}</div>
+        <div class="fz">${f.zone||'—'}</div>
+        ${f.status?`<div class="fst">${f.status}</div>`:''}
+        <div class="f-card-actions">
+          <button class="f-act" onclick="event.stopPropagation();focusFriend('${f.code}')">→ Find</button>
+          <button class="f-act f-rem" onclick="event.stopPropagation();confirmRemove('${f.code}','${f.name}')">✕ Remove</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderFanStatus(c){
+  const rem=myStatusMsg&&Date.now()<myStatusExpiry?Math.max(0,Math.ceil((myStatusExpiry-Date.now())/60000)):0;
+  c.innerHTML=`
+    <div class="slabel">Current Status</div>
+    ${myStatusMsg&&rem>0
+      ? `<div class="active-status"><span class="as-txt">${myStatusMsg}</span><span style="font-size:9px;color:var(--ink3);font-family:var(--font-m);">${rem}m</span><span class="as-clr" onclick="clearStatus()">✕</span></div>`
+      : `<div style="font-size:10px;color:var(--ink3);font-family:var(--font-m);padding:8px 0;">No active status</div>`}
+    <div class="slabel" style="margin-top:6px;">Set Status</div>
+    <div class="status-compose">
+      <div class="emoji-row" id="em-row"></div>
+      <input id="st-input" type="text" placeholder="Buying beer, Front row, Lost..." maxlength="40"/>
+      <button class="status-send" onclick="submitStatus()">📢 Set (10 min)</button>
+    </div>
+    <div style="margin-top:8px;">
+      <div class="slabel">Meeting Point</div>
+      <button style="width:100%;padding:9px;background:var(--bg);border:1.5px solid var(--border);color:var(--ink2);font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;" onclick="placeMeetPin()">📍 Drop Meet Point</button>
+    </div>`;
+  const row=document.getElementById('em-row');
+  if(row) STATUS_EMOJIS.forEach(em=>{
+    const el=document.createElement('div');
+    el.className='em-opt'+(em===mySelEmoji?' on':'');
+    el.textContent=em;
+    el.onclick=()=>{mySelEmoji=em;document.querySelectorAll('.em-opt').forEach(e=>e.classList.remove('on'));el.classList.add('on');};
+    row.appendChild(el);
+  });
+}
+
+function renderZones(c){
+  c.innerHTML=`<div class="slabel">Zones</div>`+ZONES.map(z=>`
+    <div class="zone-card" onclick="focusZone('${z.id}')">
+      <div class="zi">${z.icon}</div>
+      <div><div class="zn">${z.name}</div><div class="zd">${z.desc}</div></div>
+    </div>`).join('');
+}
+
+function renderAdd(c){
+  c.innerHTML=`
+    <div class="slabel">Add a Friend</div>
+    <div class="add-form">
+      <input type="text" id="fi-inp" placeholder="Enter code e.g. AB·1234" maxlength="8"/>
+      <button class="add-btn" onclick="sendRequest()">Send Request</button>
+    </div>
+    <div style="font-size:9px;color:var(--ink3);line-height:1.8;font-family:var(--font-m);background:var(--bg);border:1.5px solid var(--border);padding:10px;margin-top:2px;border-radius:2px;">
+      Ask your friend for their Find Y Crew code and enter it here. Once accepted, you'll see each other on the live map.
+    </div>`;
+  const inp=document.getElementById('fi-inp');
+  if(inp) inp.addEventListener('input',e=>{
+    let v=e.target.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+    if(v.length>2) v=v.slice(0,2)+'·'+v.slice(2,6);
+    e.target.value=v;
+  });
+}
+
+function renderPending(){
+  const sec=document.getElementById('pend-sec');
+  const list=document.getElementById('pend-list');
+  if(!sec||!list) return;
+  if(!pending.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  list.innerHTML=pending.map((p,i)=>`
+    <div class="pend-card">
+      <div class="pend-name">${p.name}</div>
+      <div class="pend-sub">Request sent · ${p.code}</div>
+      <div class="pend-btns">
+        <button class="acc-btn" onclick="acceptFriend(${i})">✓ Accept</button>
+        <button class="dec-btn" onclick="declineFriend(${i})">✗ Ignore</button>
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ADMIN TABS
+// ════════════════════════════════════════════════════════════════════════════
+function renderAdminLive(c){
+  const now=Date.now();
+  const active=allUsers.length;
+  const sessionMins=Math.round((now-sessionStart)/60000);
+  c.innerHTML=`
+    <div class="slabel">Live Stats</div>
+    <div class="admin-stats">
+      <div class="stat-box"><div class="stat-num sn-green">${active}</div><div class="stat-lbl">Online Now</div></div>
+      <div class="stat-box"><div class="stat-num sn-blue">${sessionMins}m</div><div class="stat-lbl">Session Time</div></div>
+      <div class="stat-box"><div class="stat-num sn-amber">${allUsers.filter(u=>u.status).length}</div><div class="stat-lbl">With Status</div></div>
+      <div class="stat-box"><div class="stat-num sn-ink">${allUsers.length}</div><div class="stat-lbl">Total Seen</div></div>
+    </div>
+    <div class="slabel" style="margin-top:4px;">Active Users</div>
+    ${allUsers.length
+      ? allUsers.map((u,i)=>`
+        <div class="user-row" onclick="adminFocus(${u.x},${u.y})">
+          <div class="ur-av" style="background:${COLORS[i%COLORS.length]}22;border:1.5px solid ${COLORS[i%COLORS.length]};">${u.avatar||'🙂'}</div>
+          <div style="flex:1;">
+            <div class="ur-name">${u.name}</div>
+            <div class="ur-info">${Math.round((Date.now()-u.updated_at)/1000)}s ago${u.status?' · '+u.status:''}</div>
+          </div>
+          <div class="ur-dot" style="background:${COLORS[i%COLORS.length]};"></div>
+        </div>`).join('')
+      : `<div style="font-size:10px;color:var(--ink3);font-family:var(--font-m);padding:12px 0;text-align:center;">No users online yet</div>`}
+    <button class="export-btn" onclick="exportData()">↓ Export Session Data</button>`;
+}
+
+function renderAdminUsers(c){
+  c.innerHTML=`
+    <div class="slabel">All Users This Session</div>
+    ${allUsers.length
+      ? allUsers.map((u,i)=>`
+        <div class="user-row">
+          <div class="ur-av" style="background:${COLORS[i%COLORS.length]}22;">${u.avatar||'🙂'}</div>
+          <div style="flex:1;">
+            <div class="ur-name">${u.name}</div>
+            <div class="ur-info">Code: ${u.code} · Last seen ${Math.round((Date.now()-u.updated_at)/1000)}s ago</div>
+            ${u.status?`<div class="ur-info" style="color:var(--amber);">${u.status}</div>`:''}
+          </div>
+        </div>`).join('')
+      : `<div style="font-size:10px;color:var(--ink3);font-family:var(--font-m);padding:12px 0;text-align:center;">No users yet</div>`}`;
+}
+
+function adminFocus(lat,lng){
+  if(leafMap&&lat&&lng) leafMap.setView([lat,lng],17);
+}
+
+function exportData(){
+  const data={exportedAt:new Date().toISOString(),sessionDuration:Math.round((Date.now()-sessionStart)/60000)+'min',users:allUsers.map(u=>({name:u.name,code:u.code,lastSeen:new Date(u.updated_at).toISOString(),status:u.status||''}))};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`fyc-session-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('Exported','Session data downloaded as JSON','green','↓',3000);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// FRIEND SYSTEM
+// ════════════════════════════════════════════════════════════════════════════
+async function sendRequest(){
+  const inp=document.getElementById('fi-inp');
+  if(!inp) return;
+  const code=inp.value.trim().toUpperCase();
+  if(!code) return;
+  if(code===MY_CODE){toast("That's your code!",'','amber','🤔',2500);return;}
+  if(friends.find(f=>f.code===code)){toast('Already in your crew!','','amber','👥',2500);return;}
+  if(pending.find(p=>p.code===code)){toast('Request already sent','','amber','📨',2500);return;}
+
+  // Save to Supabase friendships table
+  const fid = [MY_CODE,code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
+  try {
+    await sb('friendships','POST',[{
+      id: fid,
+      requester_code: MY_CODE,
+      receiver_code: code,
+      status: 'pending',
+      created_at: Date.now(),
+      updated_at: Date.now()
+    }]);
+    // Add to local pending with placeholder name (will update when they appear in positions)
+    const user={id:'f_'+Date.now(),name:code,code,
+      color:COLORS[Math.floor(Math.random()*COLORS.length)],
+      avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],zone:'—',status:''};
+    pending.push(user);
+    if(activeTab==='crew') renderCrew(document.getElementById('tab-content'));
+    else toast('Request sent!','Waiting for them to accept','amber','📨',3500);
+    inp.value='';
+  } catch(e) {
+    toast('Could not send request','Check your connection','red','⚠',3000);
+  }
+}
+async function acceptFriend(i){
+  const f=pending[i];
+  // Update friendship status in Supabase
+  const fid=[MY_CODE,f.code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
+  try {
+    await sb(`friendships?id=eq.${fid}`,'PATCH',{status:'accepted',updated_at:Date.now()});
+  } catch(e) { console.warn('Could not update friendship in DB'); }
+  friends.push(f); pending.splice(i,1);
+  renderFriendCards(); renderPending(); saveProfile();
+  toast(f.name+' joined your crew!','','green','🤘',3000);
+}
+async function declineFriend(i){
+  const f=pending[i];
+  const fid=[MY_CODE,f.code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
+  try { await sb(`friendships?id=eq.${fid}`,'DELETE'); } catch(e){}
+  pending.splice(i,1); renderPending();
+}
+function confirmRemove(code,name){
+  document.getElementById('conf-ttl').textContent='Remove '+name+'?';
+  document.getElementById('conf-bdy').textContent=name+' will no longer see your position. You can add them back with their code.';
+  document.getElementById('conf-yes').onclick=()=>doRemove(code);
+  document.getElementById('confirm').classList.add('show');
+}
+async async function doRemove(code){
+  hideConfirm();
+  const fid=[MY_CODE,code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
+  try { await sb(`friendships?id=eq.${fid}`,'DELETE'); } catch(e){}
+  friends=friends.filter(f=>f.code!==code);
+  if(otherLeafMarkers[code]){leafMap.removeLayer(otherLeafMarkers[code]);delete otherLeafMarkers[code];}
+  saveProfile(); renderFriendCards();
+  toast('Friend removed','','amber','👋',3000);
+}
+function hideConfirm(){document.getElementById('confirm').classList.remove('show');}
+function focusFriend(code){
+  selectedFriend=code;
+  const m=otherLeafMarkers[code];
+  if(m&&leafMap)leafMap.setView(m.getLatLng(),17);
+  else toast('Friend not on map yet','They may not have GPS active','amber','📍',3000);
+  renderFriendCards();
+}
+function focusZone(id){
+  toast(ZONES.find(z=>z.id===id)?.name||'Zone','','blue','📍',2500);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// STATUS + MEETING POINT
+// ════════════════════════════════════════════════════════════════════════════
+function submitStatus(){
+  const inp=document.getElementById('st-input');
+  if(!inp||!inp.value.trim()){toast('Write a message first','','amber','💬',2000);return;}
+  myStatusMsg=mySelEmoji+' '+inp.value.trim();
+  myStatusExpiry=Date.now()+600000;
+  toast('Status set','Visible for 10 minutes','amber','💬',3000);
+  if(activeTab==='status') renderTabContent('status');
+  inp.value='';
+}
+function clearStatus(){myStatusMsg='';myStatusExpiry=0;if(activeTab==='status')renderTabContent('status');}
+function tickStatus(){if(myStatusMsg&&Date.now()>myStatusExpiry){myStatusMsg='';if(activeTab==='status')renderTabContent('status');}}
+
+function placeMeetPin(){
+  if(!leafMap) return;
+  const c=leafMap.getCenter();
+  if(meetPin) leafMap.removeLayer(meetPin);
+  meetPin=L.marker([c.lat,c.lng],{
+    icon:L.divIcon({className:'',iconSize:[80,30],iconAnchor:[40,30],
+      html:`<div style="background:var(--accent);color:white;font-size:9px;font-weight:700;letter-spacing:2px;padding:4px 8px;border-radius:2px;white-space:nowrap;font-family:var(--font-d);">MEET HERE</div><div style="width:2px;height:8px;background:var(--accent);margin:0 auto;"></div>`
+    })
+  }).addTo(leafMap);
+  meetPin.on('click',()=>{leafMap.removeLayer(meetPin);meetPin=null;});
+  toast('Meeting point dropped','Your crew can see this pin','amber','📍',3500);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PRIVACY
+// ════════════════════════════════════════════════════════════════════════════
+function togglePriv(k,el){
+  privSettings[k]=!privSettings[k];
+  el.classList.toggle('on',privSettings[k]);
+  toast(k==='visible'?(privSettings.visible?'Visible on map':'Now invisible'):(privSettings.exact?'Sharing exact position':'Sharing zone only'),'',privSettings[k]?'green':'amber','🔒',2800);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// QR CODE
+// ════════════════════════════════════════════════════════════════════════════
+function openQR(){
+  document.getElementById('qr-overlay').classList.add('show');
+  const url=window.location.href;
+  document.getElementById('qr-url').textContent=url;
+  const canvas=document.getElementById('qr-canvas');
+  if(typeof QRious==='undefined'){
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js';
+    s.onload=()=>drawQR(url,canvas);
+    document.head.appendChild(s);
+  } else drawQR(url,canvas);
+}
+function drawQR(url,canvas){
+  try{new QRious({element:canvas,value:url,size:200,level:'M',background:'#ffffff',foreground:'#1a1814',padding:10});}
+  catch(e){/* fallback silent */}
+}
+function closeQR(){document.getElementById('qr-overlay').classList.remove('show');}
+function downloadQR(){
+  const c=document.getElementById('qr-canvas');
+  const dl=document.createElement('canvas');dl.width=300;dl.height=380;
+  const ctx=dl.getContext('2d');
+  ctx.fillStyle='#1a1814';ctx.fillRect(0,0,300,380);
+  ctx.fillStyle='#ff4500';ctx.fillRect(0,0,300,4);
+  ctx.fillStyle='white';ctx.font='bold 22px sans-serif';ctx.textAlign='center';ctx.fillText('Find Y Crew',150,42);
+  ctx.fillStyle='#666';ctx.font='10px monospace';ctx.fillText('FIND YOUR CREW · LIVE MAP',150,60);
+  ctx.fillStyle='white';ctx.fillRect(45,75,210,210);
+  ctx.drawImage(c,55,85,190,190);
+  ctx.fillStyle='#555';ctx.font='9px monospace';ctx.fillText('Scan to join the live map',150,310);
+  ctx.fillText('No app download needed',150,328);
+  ctx.fillStyle='#ff4500';ctx.fillRect(0,376,300,4);
+  const a=document.createElement('a');a.download='find-y-crew-qr.png';a.href=dl.toDataURL();a.click();
+  toast('QR downloaded','Ready to print','green','⬛',3000);
+}
+function copyQRUrl(){
+  navigator.clipboard.writeText(window.location.href)
+    .then(()=>toast('URL copied!','Share via WhatsApp or social','green','⎘',3000))
+    .catch(()=>toast(window.location.href,'','green','⎘',4000));
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const qo=document.getElementById('qr-overlay');
+  if(qo) qo.addEventListener('click',e=>{if(e.target===qo)closeQR();});
+  const co=document.getElementById('confirm');
+  if(co) co.addEventListener('click',e=>{if(e.target===co)hideConfirm();});
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════════════════════
+let tid=0;
+function toast(title,body,type='red',icon='🔔',dur=4000){
+  const w=document.getElementById('toast-wrap');if(!w)return;
+  const id=++tid;
+  const el=document.createElement('div');
+  el.className=`toast${type==='green'?' t-green':type==='amber'?' t-amber':type==='blue'?' t-blue':''}`;
+  el.id='t-'+id;
+  el.innerHTML=`<span class="t-ico">${icon}</span><div class="t-txt"><div class="t-ttl">${title}</div>${body?`<div class="t-bdy">${body}</div>`:''}</div><span class="t-x" onclick="dismissToast(${id})">✕</span>`;
+  w.appendChild(el);
+  if(dur>0) setTimeout(()=>dismissToast(id),dur);
+}
+function dismissToast(id){
+  const el=document.getElementById('t-'+id);if(!el)return;
+  el.classList.add('hiding');setTimeout(()=>el.remove(),250);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════════════════════
+function genCode(){const L='ABCDEFGHJKLMNPQRSTUVWXYZ';const r=()=>L[Math.floor(Math.random()*L.length)];const n=()=>Math.floor(Math.random()*10);return`${r()}${r()}·${n()}${n()}${n()}${n()}`;}
+function copyCode(){navigator.clipboard.writeText(MY_CODE).then(()=>toast('Code copied!','Share with friends','green','⎘',2500));}
+function setConn(s){
+  const d=document.getElementById('conn-dot'),l=document.getElementById('conn-lbl');
+  if(!d||!l)return;
+  d.className='conn-dot'+(s==='live'?' live':s==='err'?' err':'');
+  l.textContent=s==='live'?'LIVE':s==='err'?'OFFLINE':s==='gps'?'GPS':'—';
+}
+async function removeFromDB(){try{await sb(`positions?id=eq.${MY_CODE}`,'DELETE');}catch(e){}}
+window.addEventListener('beforeunload',removeFromDB);
+</script>
+</body>
+</html>
