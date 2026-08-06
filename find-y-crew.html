@@ -461,7 +461,7 @@ const ZONES = [
 // ════════════════════════════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════════════════════════════
-let ROLE='fan', MY_NAME='', MY_CODE=genCode(), MY_COLOR=COLORS[0], MY_AVATAR=AVATARS[0];
+let ROLE='fan', MY_NAME='', MY_CODE='', MY_COLOR=COLORS[0], MY_AVATAR=AVATARS[0];
 let myLat=null, myLng=null, watchId=null, pushTimer=null;
 let dbOk=false, centered=false, mapMode='street'; // 'street' | 'custom'
 let friends=[], pending=[], privSettings={visible:true,exact:true};
@@ -589,7 +589,7 @@ function updatePreview() {
     if (cd) cd.textContent='Code: '+MY_CODE;
   } else { row.style.display='none'; }
 }
-function setupNext() {
+async function setupNext() {
   const btn = document.getElementById('setup-btn');
   const title = document.getElementById('setup-title');
   const err = document.getElementById('setup-err');
@@ -609,7 +609,8 @@ function setupNext() {
     if (btn) btn.textContent='Enter the Map →';
     if (title) title.textContent='Pick your avatar';
   } else if (setupStep===2) {
-    startApp();
+    // Check name uniqueness in Supabase before entering
+    await checkNameAndEnter();
   }
 }
 function goSetupStep(n) {
@@ -626,6 +627,31 @@ function showSetupErr(msg) {
 // ════════════════════════════════════════════════════════════════════════════
 // RETURNING USER
 // ════════════════════════════════════════════════════════════════════════════
+async function checkNameAndEnter() {
+  const btn = document.getElementById('setup-btn');
+  if (btn) { btn.textContent = 'Checking...'; btn.disabled = true; }
+  try {
+    const data = await sb(`positions?name=eq.${encodeURIComponent(MY_NAME)}&select=name,updated_at`);
+    const now = Date.now();
+    // Check if name is taken by an active user (seen in last 24h)
+    const taken = data && data.find(p => now - p.updated_at < 86400000);
+    if (taken) {
+      if (btn) { btn.textContent = 'Enter the Map →'; btn.disabled = false; }
+      showSetupErr(`"${MY_NAME}" is already taken. Choose a different nickname.`);
+      // Go back to step 0 to change name
+      goSetupStep(0);
+      const title = document.getElementById('setup-title');
+      if (title) title.textContent = 'Choose another name';
+      return;
+    }
+  } catch(e) {
+    // If check fails (offline etc), allow entry anyway
+    console.warn('Name check failed:', e.message);
+  }
+  if (btn) { btn.textContent = 'Enter the Map →'; btn.disabled = false; }
+  startApp();
+}
+
 function checkReturning() {
   try {
     const s=localStorage.getItem('fyc_profile');
@@ -663,7 +689,9 @@ function saveProfile() {
 // ════════════════════════════════════════════════════════════════════════════
 // START APP
 // ════════════════════════════════════════════════════════════════════════════
-function startApp() {
+async function startApp() {
+  // Generate code using name+avatar for uniqueness (if not returning user)
+  if (!MY_CODE) MY_CODE = genCode(MY_NAME, MY_AVATAR);
   document.getElementById('setup').classList.remove('show');
   document.getElementById('app').classList.add('show');
   // Header
@@ -692,8 +720,11 @@ function onPos(pos) {
   if(ROLE==='fan'&&!privSettings.visible) return;
   if(mapMode==='street') {
     if(!myLeafMarker){
-      const icon=L.divIcon({className:'',iconSize:[16,16],iconAnchor:[8,8],
-        html:`<div style="width:16px;height:16px;border-radius:50%;background:${MY_COLOR};border:3px solid white;box-shadow:0 0 8px ${MY_COLOR}88;"></div>`});
+      const icon=L.divIcon({className:'',iconSize:[28,36],iconAnchor:[14,34],
+        html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <div style="font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));">${MY_AVATAR}</div>
+          <div style="width:10px;height:10px;border-radius:50%;background:${MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${MY_COLOR};"></div>
+        </div>`});
       myLeafMarker=L.marker([myLat,myLng],{icon,zIndexOffset:1000}).addTo(leafMap)
         .bindPopup(`<b>${ROLE==='admin'?'Admin (hidden)':MY_NAME}</b>`);
     } else { myLeafMarker.setLatLng([myLat,myLng]); }
@@ -769,8 +800,12 @@ async function syncPositions(){
           f.zone='Online'; f.status=live.status_expiry>now?live.status:'';
           const lat=live.x,lng=live.y;
           if(!otherLeafMarkers[f.code]){
-            const icon=L.divIcon({className:'',iconSize:[13,13],iconAnchor:[6,6],
-              html:`<div style="width:13px;height:13px;border-radius:50%;background:${f.color||MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${f.color||MY_COLOR}88;"></div>`});
+            const icon=L.divIcon({className:'',iconSize:[28,36],iconAnchor:[14,34],
+              html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));">${f.avatar||'🙂'}</div>
+                <div style="width:10px;height:10px;border-radius:50%;background:${f.color||MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${f.color||MY_COLOR};"></div>
+                <div style="font-size:9px;font-family:monospace;font-weight:700;color:white;background:${f.color||MY_COLOR};padding:1px 4px;border-radius:2px;white-space:nowrap;margin-top:1px;">${f.name}</div>
+              </div>`});
             otherLeafMarkers[f.code]=L.marker([lat,lng],{icon}).addTo(leafMap).bindPopup(`<b>${f.name}</b>${f.status?'<br>'+f.status:''}`);
           } else { otherLeafMarkers[f.code].setLatLng([lat,lng]); }
         } else {
@@ -786,8 +821,12 @@ async function syncPositions(){
         seen.add(p.code);
         const col=COLORS[i%COLORS.length];
         if(!otherLeafMarkers[p.code]){
-          const icon=L.divIcon({className:'',iconSize:[13,13],iconAnchor:[6,6],
-            html:`<div style="width:13px;height:13px;border-radius:50%;background:${col};border:2px solid white;"></div>`});
+          const icon=L.divIcon({className:'',iconSize:[28,36],iconAnchor:[14,34],
+            html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+              <div style="font-size:15px;line-height:1;">${p.avatar||'🙂'}</div>
+              <div style="width:10px;height:10px;border-radius:50%;background:${col};border:2px solid white;"></div>
+              <div style="font-size:8px;font-family:monospace;font-weight:700;color:white;background:${col};padding:1px 3px;border-radius:2px;white-space:nowrap;">${p.name}</div>
+            </div>`});
           otherLeafMarkers[p.code]=L.marker([p.x,p.y],{icon}).addTo(leafMap).bindPopup(`<b>${p.name}</b><br>${new Date(p.updated_at).toLocaleTimeString()}`);
         } else { otherLeafMarkers[p.code].setLatLng([p.x,p.y]); }
       });
@@ -1256,7 +1295,18 @@ function dismissToast(id){
 // ════════════════════════════════════════════════════════════════════════════
 // UTILS
 // ════════════════════════════════════════════════════════════════════════════
-function genCode(){const L='ABCDEFGHJKLMNPQRSTUVWXYZ';const r=()=>L[Math.floor(Math.random()*L.length)];const n=()=>Math.floor(Math.random()*10);return`${r()}${r()}·${n()}${n()}${n()}${n()}`;}
+function genCode(name, avatar){
+  // Base: 2 letters from name + timestamp hash + random digit
+  // Ensures uniqueness even if many users join simultaneously
+  const ts = Date.now().toString(36).toUpperCase().slice(-3);
+  const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const nameClean = (name||'').toUpperCase().replace(/[^A-Z]/g,'');
+  const a = nameClean[0] || L[Math.floor(Math.random()*L.length)];
+  const b = nameClean[1] || L[Math.floor(Math.random()*L.length)];
+  const n = Math.floor(Math.random()*10);
+  // Format: 2 name letters · 3 timestamp chars + 1 random digit
+  return `${a}${b}·${ts}${n}`;
+}
 function copyCode(){navigator.clipboard.writeText(MY_CODE).then(()=>toast('Code copied!','Share with friends','green','⎘',2500));}
 function setConn(s){
   const d=document.getElementById('conn-dot'),l=document.getElementById('conn-lbl');
