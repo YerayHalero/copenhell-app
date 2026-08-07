@@ -398,7 +398,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
         <div style="font-size:10px;font-family:var(--font-m);color:var(--ink3);letter-spacing:3px;">LOADING MAP...</div>
       </div>
       <div id="custom-map-layer"><img id="custom-map-img" src="" alt=""/></div>
-      <button id="map-mode-btn" onclick="toggleMapMode()">🗺 Festival Map</button>
+      <button id="map-mode-btn" onclick="toggleMapMode()" style="font-size:8px;padding:4px 7px;opacity:0.6;">Street</button>
       <div id="markers-layer" style="position:absolute;inset:0;z-index:20;pointer-events:none;"></div>
       <div id="toast-wrap"></div>
       <button id="locate-btn" onclick="centerOnMe()">● Me</button>
@@ -449,7 +449,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
 const SB_URL  = 'https://jootvxinokfwffkdhony.supabase.co';
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impvb3R2eGlub2tmd2Zma2Rob255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDEyMTcsImV4cCI6MjA5MDkxNzIxN30.gJ7aDKudwWNb_WDsMUB8l375CmbD_C3O_-_EUCRmMbo';
 const ADMIN_CODE = 'FINDYCREW-ADMIN-2026';
-const PUSH_MS = 4000, STALE_MS = 35000;
+const PUSH_MS = 4000, STALE_MS = 1800000; // 30 min
 const COLORS  = ['#ff4500','#0088cc','#ffaa00','#22aa55','#aa44cc','#ff3399','#00ccaa','#ff6600','#4466ff','#cc0044'];
 const AVATARS = ['🙂','🤘','🐺','🦋','⚡','🔥','💀','🌙','🦅','🐉','🎸','🏔','🌊','🎭','🦁'];
 const STATUS_EMOJIS = ['🍺','🎵','🤘','🔥','📸','😵','💃','🍕','🚽','💬'];
@@ -857,21 +857,33 @@ async function syncPositions(){
     allUsers=data.filter(p=>now-p.updated_at<STALE_MS);
 
     // Update friend markers (fan mode)
-    if(ROLE==='fan'&&mapMode==='street'){
+    if(ROLE==='fan'){
       friends.forEach(f=>{
         const live=data.find(p=>p.code===f.code&&now-p.updated_at<STALE_MS);
         if(live){
           f.zone='Online'; f.status=live.status_expiry>now?live.status:'';
+          f.lastSeen=live.updated_at; // Track when we last saw them
           const lat=live.x,lng=live.y;
+          const fAge = f.lastSeen ? Math.floor((now-f.lastSeen)/60000) : 0;
+          const fStale = fAge > 2;
+          const fAgeStr = fAge===0?'Live':fAge<60?fAge+'m ago':Math.floor(fAge/60)+'h ago';
           if(!otherLeafMarkers[f.code]){
-            const icon=L.divIcon({className:'',iconSize:[28,36],iconAnchor:[14,34],
-              html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                <div style="font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));">${f.avatar||'🙂'}</div>
-                <div style="width:10px;height:10px;border-radius:50%;background:${f.color||MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${f.color||MY_COLOR};"></div>
-                <div style="font-size:9px;font-family:monospace;font-weight:700;color:white;background:${f.color||MY_COLOR};padding:1px 4px;border-radius:2px;white-space:nowrap;margin-top:1px;">${f.name}</div>
+            const icon=L.divIcon({className:'',iconSize:[34,46],iconAnchor:[17,44],
+              html:`<div style="display:flex;flex-direction:column;align-items:center;gap:1px;opacity:${fStale?0.7:1};">
+                <div style="font-size:18px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6));">${f.avatar||'🙂'}</div>
+                <div style="width:10px;height:10px;border-radius:50%;background:${fStale?'#888':f.color||MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${f.color||MY_COLOR};"></div>
+                <div style="font-size:8px;font-family:monospace;font-weight:700;color:white;background:${fStale?'rgba(80,80,80,0.9)':f.color||MY_COLOR};padding:1px 4px;border-radius:2px;white-space:nowrap;">${f.name}</div>
+                ${fStale?`<div style="font-size:7px;color:rgba(255,255,255,0.8);background:rgba(0,0,0,0.6);padding:1px 3px;border-radius:2px;">${fAgeStr}</div>`:''}
               </div>`});
-            otherLeafMarkers[f.code]=L.marker([lat,lng],{icon}).addTo(leafMap).bindPopup(`<b>${f.name}</b>${f.status?'<br>'+f.status:''}`);
-          } else { otherLeafMarkers[f.code].setLatLng([lat,lng]); }
+            otherLeafMarkers[f.code]=L.marker([lat,lng],{icon}).addTo(leafMap).bindPopup(`<b>${f.name}</b><br>${fAgeStr}${f.status?'<br>'+f.status:''}`);
+          } else {
+            otherLeafMarkers[f.code].setLatLng([lat,lng]);
+            const _a=f.lastSeen?Math.floor((Date.now()-f.lastSeen)/60000):0;
+            const _s=_a>2;const _l=_a===0?'Live':_a<60?_a+'m':Math.floor(_a/60)+'h';
+            otherLeafMarkers[f.code].setIcon(L.divIcon({className:'',iconSize:[34,46],iconAnchor:[17,44],
+              html:'<div style="display:flex;flex-direction:column;align-items:center;gap:1px;opacity:'+(_s?0.7:1)+'"><div style="font-size:18px;line-height:1;">'+(f.avatar||'🙂')+'</div><div style="width:10px;height:10px;border-radius:50%;background:'+(_s?'#888':f.color||MY_COLOR)+';border:2px solid white;"></div><div style="font-size:8px;font-family:monospace;font-weight:700;color:white;background:'+(_s?'rgba(80,80,80,.9)':f.color||MY_COLOR)+';padding:1px 4px;border-radius:2px;white-space:nowrap;">'+f.name+'</div>'+(_s?'<div style="font-size:7px;color:rgba(255,255,255,.8);background:rgba(0,0,0,.6);padding:1px 3px;border-radius:2px;">'+_l+'</div>':'')+'</div>'
+            }));
+          }
         } else {
           if(otherLeafMarkers[f.code]){leafMap.removeLayer(otherLeafMarkers[f.code]);delete otherLeafMarkers[f.code];}
         }
@@ -901,36 +913,11 @@ async function syncPositions(){
     if(ROLE==='fan'&&activeTab==='crew') renderFriendCards();
     setConn('live');
   } catch(e){ setConn('err'); }
-  // Poll incoming friend requests from Supabase
-  if(ROLE==='fan') await pollIncomingRequests();
+  // Friend updates handled by syncPositions friend position pull
 }
 
-// ── POLL INCOMING FRIEND REQUESTS FROM SUPABASE ──────────────────────────
-async function pollIncomingRequests(){
-  try {
-    // Find pending requests where I am the receiver
-    const myCodeClean = MY_CODE.replace('·','%C2%B7');
-    const data = await sb(`friendships?receiver_code=eq.${encodeURIComponent(MY_CODE)}&status=eq.pending&select=*`);
-    if(!data||!data.length) return;
-    data.forEach(async req => {
-      // Skip if already in pending or friends
-      if(pending.find(p=>p.code===req.requester_code)) return;
-      if(friends.find(f=>f.code===req.requester_code)) return;
-      // Look up their profile in positions table
-      let name = req.requester_code;
-      let color = COLORS[Math.floor(Math.random()*COLORS.length)];
-      let avatar = AVATARS[Math.floor(Math.random()*AVATARS.length)];
-      try {
-        const pos = await sb(`positions?code=eq.${encodeURIComponent(req.requester_code)}&select=*`);
-        if(pos&&pos.length) { name=pos[0].name; color=pos[0].color||color; avatar=pos[0].avatar||avatar; }
-      } catch(e){}
-      const user={id:'f_'+Date.now(),name,code:req.requester_code,color,avatar,zone:'—',status:''};
-      pending.push(user);
-      toast(name+' wants to join your crew!','Go to Crew tab to accept','amber','👥',6000);
-      if(activeTab==='crew') renderCrew(document.getElementById('tab-content'));
-    });
-  } catch(e){ console.warn('Could not poll requests:', e.message); }
-}
+// Polling simplified — no friendships table needed
+async function pollIncomingRequests(){ /* removed — using direct code lookup */ }
 
 // ════════════════════════════════════════════════════════════════════════════
 // LEAFLET MAP
@@ -946,14 +933,17 @@ function initLeafMap(){
     const ov=document.getElementById('map-loading');
     if(ov) ov.style.display='none';
     if(SZIGET_MODE){
-      // Load festival map overlay
+      // Dim the street map tiles
+      document.getElementById('map').style.filter='grayscale(60%) brightness(0.5)';
+      // Load festival map overlay at full opacity
       festivalMapOverlay = L.imageOverlay(SZIGET_MAP_IMAGE, SZIGET_BOUNDS, {
-        opacity: 0.88,
+        opacity: 0.92,
         interactive: false,
         zIndex: 10
       }).addTo(leafMap);
       // Fit map to island
-      leafMap.fitBounds(SZIGET_BOUNDS);
+      leafMap.fitBounds(SZIGET_BOUNDS, {padding:[20,20]});
+      mapMode = 'festival';
       addSzigetMarkers();
     }
   }, 1500);
@@ -964,19 +954,19 @@ function mapZoom(f){if(leafMap)leafMap.setZoom(leafMap.getZoom()+(f>1?1:-1),{ani
 function resetMapView(){if(leafMap&&myLat)leafMap.setView([myLat,myLng],16);}
 function toggleMapMode(){
   const btn=document.getElementById('map-mode-btn');
-  if(!festivalMapOverlay&&!SZIGET_MODE){return;}
-  if(mapMode==='street'){
-    mapMode='festival';
-    if(btn)btn.textContent='🗺 Street Map';
-    // Show festival map, hide street tiles
-    if(festivalMapOverlay) festivalMapOverlay.setOpacity(0.95);
-    document.getElementById('map').style.filter='grayscale(80%) brightness(0.4)';
-  } else {
+  if(!festivalMapOverlay) return;
+  if(mapMode==='festival'){
+    // Switch to street view (emergency navigation)
     mapMode='street';
-    if(btn)btn.textContent='🗺 Festival Map';
-    // Show street map, dim festival overlay
-    if(festivalMapOverlay) festivalMapOverlay.setOpacity(0.88);
+    if(btn)btn.textContent='Festival';
+    festivalMapOverlay.setOpacity(0.3);
     document.getElementById('map').style.filter='none';
+  } else {
+    // Back to festival map
+    mapMode='festival';
+    if(btn)btn.textContent='Street';
+    festivalMapOverlay.setOpacity(0.92);
+    document.getElementById('map').style.filter='grayscale(60%) brightness(0.5)';
   }
 }
 
@@ -1029,7 +1019,7 @@ function renderCrew(c){
     <div>
       <div class="slabel">+ Add Someone</div>
       <div style="display:flex;gap:6px;">
-        <input type="text" id="fi-inp-quick" placeholder="Enter code e.g. YE·4EL5" maxlength="8"
+        <input type="text" id="fi-inp-quick" placeholder="Enter code e.g. YE4EL5" maxlength="8"
           style="flex:1;background:white;border:1.5px solid var(--border2);color:var(--ink);font-family:var(--font-m);font-size:13px;letter-spacing:2px;padding:8px 10px;outline:none;border-radius:2px;text-transform:uppercase;"
           onkeydown="if(event.key==='Enter')quickAdd()"/>
         <button onclick="quickAdd()"
@@ -1059,23 +1049,30 @@ function renderFriendCards(){
   if(!list) return;
   if(ct) ct.textContent=friends.length;
   if(!friends.length){
-    list.innerHTML=`<div style="font-size:10px;color:var(--ink3);font-family:var(--font-m);text-align:center;padding:16px 0;line-height:1.8;">No crew yet.<br>Go to Add tab.</div>`;
+    list.innerHTML=`<div style="font-size:10px;color:var(--ink3);font-family:var(--font-m);text-align:center;padding:16px 0;line-height:1.8;">No crew yet.<br>Add someone below.</div>`;
     return;
   }
-  list.innerHTML=friends.map(f=>`
-    <div class="f-card ${selectedFriend===f.code?'sel':''}" onclick="focusFriend('${f.code}')">
+  const now = Date.now();
+  list.innerHTML=friends.map(f=>{
+    const age = f.lastSeen ? Math.floor((now-f.lastSeen)/60000) : null;
+    const isStale = age !== null && age > 2;
+    const ageLabel = age===null ? '○ Offline' : age===0 ? '● Live' : age<60 ? `${age}m ago` : `${Math.floor(age/60)}h ago`;
+    const ageColor = age===null ? 'var(--ink3)' : age===0 ? '#1a7a3c' : age<10 ? 'var(--amber)' : 'var(--ink3)';
+    return `<div class="f-card ${selectedFriend===f.code?'sel':''}" onclick="focusFriend('${f.code}')" style="opacity:${isStale?'0.8':'1'}">
       <div class="fa" style="background:${f.color||MY_COLOR}22;border-color:${f.color||MY_COLOR};">${f.avatar||'🙂'}</div>
       <div class="fi">
         <div class="fn" style="color:${f.color||MY_COLOR};">${f.name}</div>
-        <div class="fz">${f.zone||'—'}</div>
+        <div class="fz">${f.zone||'—'} <span style="color:${ageColor};font-size:9px;">${ageLabel}</span></div>
         ${f.status?`<div class="fst">${f.status}</div>`:''}
         <div class="f-card-actions">
           <button class="f-act" onclick="event.stopPropagation();focusFriend('${f.code}')">→ Find</button>
           <button class="f-act f-rem" onclick="event.stopPropagation();confirmRemove('${f.code}','${f.name}')">✕ Remove</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
+
 
 function renderFanStatus(c){
   const rem=myStatusMsg&&Date.now()<myStatusExpiry?Math.max(0,Math.ceil((myStatusExpiry-Date.now())/60000)):0;
@@ -1132,7 +1129,7 @@ function renderAdd(c){
   c.innerHTML=`
     <div class="slabel">Add a Friend</div>
     <div class="add-form">
-      <input type="text" id="fi-inp" placeholder="Enter code e.g. AB·1234" maxlength="8"/>
+      <input type="text" id="fi-inp" placeholder="Enter code e.g. YE4EL5" maxlength="8"/>
       <button class="add-btn" onclick="sendRequest()">Send Request</button>
     </div>
     <div style="font-size:9px;color:var(--ink3);line-height:1.8;font-family:var(--font-m);background:var(--bg);border:1.5px solid var(--border);padding:10px;margin-top:2px;border-radius:2px;">
@@ -1140,16 +1137,13 @@ function renderAdd(c){
     </div>`;
   const inp=document.getElementById('fi-inp');
   function fmtInput(e){
-    let v=e.target.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
-    if(v.length>2) v=v.slice(0,2)+'·'+v.slice(2,7);
+    let v=e.target.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,6);
     e.target.value=v;
   }
   const qinp=document.getElementById('fi-inp-quick');
   if(qinp) qinp.addEventListener('input',fmtInput);
   if(inp) inp.addEventListener('input',e=>{
-    let v=e.target.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
-    if(v.length>2) v=v.slice(0,2)+'·'+v.slice(2,6);
-    e.target.value=v;
+    e.target.value=e.target.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,6);
   });
 }
 
@@ -1236,89 +1230,54 @@ function exportData(){
 async function quickAdd(){
   const inp = document.getElementById('fi-inp-quick');
   if(!inp) return;
-  // Temporarily set fi-inp to use sendRequest
-  const real = document.getElementById('fi-inp');
-  const val = inp.value.trim();
-  if(!val) return;
-  inp.value = '';
-  // Use sendRequest logic directly
-  const code = val.toUpperCase();
+  const val = inp.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!val||val.length<4){toast('Enter a valid code','','amber','⚠',2500);return;}
+  inp.value='';
+  await addByCode(val);
+}
+
+async function addByCode(code){
   if(code===MY_CODE){toast("That's your code!",'','amber','🤔',2500);return;}
   if(friends.find(f=>f.code===code)){toast('Already in your crew!','','amber','👥',2500);return;}
-  if(pending.find(p=>p.code===code)){toast('Already sent','','amber','📨',2000);return;}
-  const fid=[MY_CODE,code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
+  toast('Looking up...','','blue','🔍',2000);
   try {
-    await sb('friendships','POST',[{id:fid,requester_code:MY_CODE,receiver_code:code,status:'pending',created_at:Date.now(),updated_at:Date.now()}]);
-    const user={id:'f_'+Date.now(),name:code,code,color:COLORS[Math.floor(Math.random()*COLORS.length)],avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],zone:'—',status:''};
-    pending.push(user);
-    renderCrew(document.getElementById('tab-content'));
-    toast('Request sent!','Waiting for them to accept','amber','📨',3000);
-  } catch(e) {
-    toast('Error: '+e.message.slice(0,50),'','red','⚠',4000);
+    // Look up directly in positions table — no friendships needed
+    const data = await sb(`positions?code=eq.${encodeURIComponent(code)}&select=*`);
+    let user;
+    if(data&&data.length>0){
+      const p=data[0];
+      user={id:'f_'+Date.now(),name:p.name||code,code,
+        color:p.color||COLORS[Math.floor(Math.random()*COLORS.length)],
+        avatar:p.avatar||AVATARS[Math.floor(Math.random()*AVATARS.length)],
+        zone:'Online',status:p.status||''};
+      toast(p.name+' added to crew!','You can now see each other on the map','green','🤘',4000);
+    } else {
+      // Person not online yet — add anyway, will appear when they join
+      user={id:'f_'+Date.now(),name:code,code,
+        color:COLORS[Math.floor(Math.random()*COLORS.length)],
+        avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],
+        zone:'Offline',status:''};
+      toast('Added!','They'll appear when they open the app','amber','📨',4000);
+    }
+    friends.push(user);
+    saveProfile();
+    if(activeTab==='crew') renderCrew(document.getElementById('tab-content'));
+    else renderTabContent(activeTab);
+  } catch(e){
+    toast('Error: '+e.message.slice(0,60),'','red','⚠',4000);
   }
 }
 
 async function sendRequest(){
   const inp=document.getElementById('fi-inp');
   if(!inp) return;
-  const code=inp.value.trim().toUpperCase();
-  if(!code) return;
-  if(code===MY_CODE){toast("That's your code!",'','amber','🤔',2500);return;}
-  if(friends.find(f=>f.code===code)){toast('Already in your crew!','','amber','👥',2500);return;}
-  if(pending.find(p=>p.code===code)){toast('Request already sent','','amber','📨',2500);return;}
-
-  // Save to Supabase friendships table
-  const fid = [MY_CODE,code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
-  try {
-    await sb('friendships','POST',[{
-      id: fid,
-      requester_code: MY_CODE,
-      receiver_code: code,
-      status: 'pending',
-      created_at: Date.now(),
-      updated_at: Date.now()
-    }]);
-    // Add to local pending with placeholder name (will update when they appear in positions)
-    const user={id:'f_'+Date.now(),name:code,code,
-      color:COLORS[Math.floor(Math.random()*COLORS.length)],
-      avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],zone:'—',status:''};
-    pending.push(user);
-    if(activeTab==='crew') renderCrew(document.getElementById('tab-content'));
-    else toast('Request sent!','Waiting for them to accept','amber','📨',3500);
-    inp.value='';
-  } catch(e) {
-    console.error('sendRequest error:', e.message);
-    // If duplicate (already exists), treat as success
-    if(e.message.includes('23505') || e.message.includes('duplicate')) {
-      const user={id:'f_'+Date.now(),name:code,code,
-        color:COLORS[Math.floor(Math.random()*COLORS.length)],
-        avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],zone:'—',status:''};
-      pending.push(user);
-      if(activeTab==='crew') renderCrew(document.getElementById('tab-content'));
-      else toast('Request sent!','Waiting for them to accept','amber','📨',3500);
-      if(inp) inp.value='';
-    } else {
-      toast('Could not send request',e.message.slice(0,60),'red','⚠',4000);
-    }
-  }
+  const code=inp.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!code||code.length<4) return;
+  inp.value='';
+  await addByCode(code);
 }
-async function acceptFriend(i){
-  const f=pending[i];
-  // Update friendship status in Supabase
-  const fid=[MY_CODE,f.code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
-  try {
-    await sb(`friendships?id=eq.${encodeURIComponent(fid)}`,'PATCH',{status:'accepted',updated_at:Date.now()});
-  } catch(e) { console.warn('Could not update friendship in DB'); }
-  friends.push(f); pending.splice(i,1);
-  renderFriendCards(); renderPending(); saveProfile();
-  toast(f.name+' joined your crew!','','green','🤘',3000);
-}
-async function declineFriend(i){
-  const f=pending[i];
-  const fid=[MY_CODE,f.code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
-  try { await sb(`friendships?id=eq.${fid}`,'DELETE'); } catch(e){}
-  pending.splice(i,1); renderPending();
-}
+function acceptFriend(i){ /* no longer used */ }
+function declineFriend(i){ /* no longer used */ }
 function confirmRemove(code,name){
   document.getElementById('conf-ttl').textContent='Remove '+name+'?';
   document.getElementById('conf-bdy').textContent=name+' will no longer see your position. You can add them back with their code.';
@@ -1327,8 +1286,7 @@ function confirmRemove(code,name){
 }
 async function doRemove(code){
   hideConfirm();
-  const fid=[MY_CODE,code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
-  try { await sb(`friendships?id=eq.${fid}`,'DELETE'); } catch(e){}
+  // Just remove locally — no DB needed
   friends=friends.filter(f=>f.code!==code);
   if(otherLeafMarkers[code]){leafMap.removeLayer(otherLeafMarkers[code]);delete otherLeafMarkers[code];}
   saveProfile(); renderFriendCards();
@@ -1454,16 +1412,15 @@ function dismissToast(id){
 // UTILS
 // ════════════════════════════════════════════════════════════════════════════
 function genCode(name, avatar){
-  // Base: 2 letters from name + timestamp hash + random digit
-  // Ensures uniqueness even if many users join simultaneously
-  const ts = Date.now().toString(36).toUpperCase().slice(-3);
+  // 2 letters from name + 4 alphanumeric from timestamp
+  // No dots or special chars — easy to type and share verbally
+  const ts = Date.now().toString(36).toUpperCase().slice(-4);
   const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const nameClean = (name||'').toUpperCase().replace(/[^A-Z]/g,'');
   const a = nameClean[0] || L[Math.floor(Math.random()*L.length)];
   const b = nameClean[1] || L[Math.floor(Math.random()*L.length)];
-  const n = Math.floor(Math.random()*10);
-  // Format: 2 name letters · 3 timestamp chars + 1 random digit
-  return `${a}${b}·${ts}${n}`;
+  // Format: AB1234 — 6 chars, no separator
+  return `${a}${b}${ts}`;
 }
 function copyCode(){navigator.clipboard.writeText(MY_CODE).then(()=>toast('Code copied!','Share with friends','green','⎘',2500));}
 function setConn(s){
@@ -1472,6 +1429,31 @@ function setConn(s){
   d.className='conn-dot'+(s==='live'?' live':s==='err'?' err':'');
   l.textContent=s==='live'?'LIVE':s==='err'?'OFFLINE':s==='gps'?'GPS':'—';
 }
+// ════════════════════════════════════════════════════════════════════════════
+// PAGE VISIBILITY — update position when phone unlocked / tab refocused
+// ════════════════════════════════════════════════════════════════════════════
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    // Phone just unlocked or tab came to foreground
+    if (navigator.geolocation && watchId !== null) {
+      // Force immediate GPS read
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          onPos(pos);
+          pushMyPos();
+        },
+        err => console.warn('Quick GPS update failed:', err.message),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    }
+  }
+});
+
+// Also re-push when window regains focus
+window.addEventListener('focus', () => {
+  if (myLat !== null) pushMyPos();
+});
+
 async function removeFromDB(){try{await sb(`positions?id=eq.${MY_CODE}`,'DELETE');}catch(e){}}
 window.addEventListener('beforeunload',removeFromDB);
 </script>
