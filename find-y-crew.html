@@ -130,7 +130,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
 .map-btn-grp{position:absolute;bottom:12px;right:12px;z-index:30;display:flex;flex-direction:column;gap:4px;}
 .map-btn{width:32px;height:32px;background:white;border:1.5px solid var(--border2);color:var(--ink);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 .map-btn:hover{background:var(--bg2);}
-#locate-btn{position:absolute;bottom:56px;right:12px;z-index:30;background:var(--accent);border:none;color:white;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;cursor:pointer;font-family:var(--font-d);font-weight:700;border-radius:2px;}
+#locate-btn{position:absolute;bottom:130px;right:12px;z-index:30;background:var(--accent);border:none;color:white;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;cursor:pointer;font-family:var(--font-d);font-weight:700;border-radius:2px;}
 #map-mode-btn{position:absolute;top:10px;right:10px;z-index:30;background:white;border:1.5px solid var(--border2);color:var(--ink2);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;cursor:pointer;font-family:var(--font-d);font-weight:600;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 
 /* MEET PIN */
@@ -393,6 +393,10 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
   <div id="main">
     <div id="map-wrap">
       <div id="map"></div>
+      <div id="map-loading" style="position:absolute;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;pointer-events:none;">
+        <div style="font-size:24px;">🗺️</div>
+        <div style="font-size:10px;font-family:var(--font-m);color:var(--ink3);letter-spacing:3px;">LOADING MAP...</div>
+      </div>
       <div id="custom-map-layer"><img id="custom-map-img" src="" alt=""/></div>
       <button id="map-mode-btn" onclick="toggleMapMode()">🗺 Street Map</button>
       <div id="markers-layer" style="position:absolute;inset:0;z-index:20;pointer-events:none;"></div>
@@ -757,7 +761,7 @@ function centerOnMe(){if(myLat&&leafMap)leafMap.setView([myLat,myLng],17);}
 // SUPABASE SYNC
 // ════════════════════════════════════════════════════════════════════════════
 async function sb(path,method='GET',body=null){
-  const prefer = method==='POST'?'resolution=merge-duplicates':method==='PATCH'?'return=minimal':'';
+  const prefer = method==='POST'?'resolution=merge-duplicates,return=minimal':method==='PATCH'?'return=minimal':'';
   const r=await fetch(SB_URL+'/rest/v1/'+path,{
     method,
     headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
@@ -873,8 +877,17 @@ async function pollIncomingRequests(){
 // ════════════════════════════════════════════════════════════════════════════
 function initLeafMap(){
   leafMap=L.map('map',{zoomControl:false}).setView([51.5,0],13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    {attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafMap);
+  leafMap.on('load', ()=>{
+    const ov=document.getElementById('map-loading');
+    if(ov) ov.style.display='none';
+  });
+  // Also hide after 3s as fallback
+  setTimeout(()=>{
+    const ov=document.getElementById('map-loading');
+    if(ov) ov.style.display='none';
+  }, 3000);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'© OpenStreetMap © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(leafMap);
 }
 function mapZoom(f){if(leafMap)leafMap.setZoom(leafMap.getZoom()+(f>1?1:-1));}
 function resetMapView(){if(leafMap&&myLat)leafMap.setView([myLat,myLng],16);}
@@ -938,6 +951,16 @@ function renderCrew(c){
     </div>
     <div id="pend-sec" style="display:none;"><div class="slabel">Pending</div><div id="pend-list"></div></div>
     <div><div class="slabel">Your Crew (<span id="crew-ct">${friends.length}</span>)</div><div id="friends-list"></div></div>
+    <div>
+      <div class="slabel">+ Add Someone</div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="fi-inp-quick" placeholder="Enter code e.g. YE·4EL5" maxlength="8"
+          style="flex:1;background:white;border:1.5px solid var(--border2);color:var(--ink);font-family:var(--font-m);font-size:13px;letter-spacing:2px;padding:8px 10px;outline:none;border-radius:2px;text-transform:uppercase;"
+          onkeydown="if(event.key==='Enter')quickAdd()"/>
+        <button onclick="quickAdd()"
+          style="padding:8px 14px;background:var(--accent);border:none;color:white;font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;">+ Add</button>
+      </div>
+    </div>
     <div>
       <div class="slabel">Privacy</div>
       <div style="background:var(--bg);border:1.5px solid var(--border);padding:10px 12px;border-radius:2px;">
@@ -1025,6 +1048,13 @@ function renderAdd(c){
       Ask your friend for their Find Y Crew code and enter it here. Once accepted, you'll see each other on the live map.
     </div>`;
   const inp=document.getElementById('fi-inp');
+  function fmtInput(e){
+    let v=e.target.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+    if(v.length>2) v=v.slice(0,2)+'·'+v.slice(2,7);
+    e.target.value=v;
+  }
+  const qinp=document.getElementById('fi-inp-quick');
+  if(qinp) qinp.addEventListener('input',fmtInput);
   if(inp) inp.addEventListener('input',e=>{
     let v=e.target.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
     if(v.length>2) v=v.slice(0,2)+'·'+v.slice(2,6);
@@ -1112,6 +1142,31 @@ function exportData(){
 // ════════════════════════════════════════════════════════════════════════════
 // FRIEND SYSTEM
 // ════════════════════════════════════════════════════════════════════════════
+async function quickAdd(){
+  const inp = document.getElementById('fi-inp-quick');
+  if(!inp) return;
+  // Temporarily set fi-inp to use sendRequest
+  const real = document.getElementById('fi-inp');
+  const val = inp.value.trim();
+  if(!val) return;
+  inp.value = '';
+  // Use sendRequest logic directly
+  const code = val.toUpperCase();
+  if(code===MY_CODE){toast("That's your code!",'','amber','🤔',2500);return;}
+  if(friends.find(f=>f.code===code)){toast('Already in your crew!','','amber','👥',2500);return;}
+  if(pending.find(p=>p.code===code)){toast('Already sent','','amber','📨',2000);return;}
+  const fid=[MY_CODE,code].sort().join('_').replace(/[^A-Za-z0-9_]/g,'');
+  try {
+    await sb('friendships','POST',[{id:fid,requester_code:MY_CODE,receiver_code:code,status:'pending',created_at:Date.now(),updated_at:Date.now()}]);
+    const user={id:'f_'+Date.now(),name:code,code,color:COLORS[Math.floor(Math.random()*COLORS.length)],avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],zone:'—',status:''};
+    pending.push(user);
+    renderCrew(document.getElementById('tab-content'));
+    toast('Request sent!','Waiting for them to accept','amber','📨',3000);
+  } catch(e) {
+    toast('Error: '+e.message.slice(0,50),'','red','⚠',4000);
+  }
+}
+
 async function sendRequest(){
   const inp=document.getElementById('fi-inp');
   if(!inp) return;
@@ -1141,7 +1196,19 @@ async function sendRequest(){
     else toast('Request sent!','Waiting for them to accept','amber','📨',3500);
     inp.value='';
   } catch(e) {
-    toast('Could not send request','Check your connection','red','⚠',3000);
+    console.error('sendRequest error:', e.message);
+    // If duplicate (already exists), treat as success
+    if(e.message.includes('23505') || e.message.includes('duplicate')) {
+      const user={id:'f_'+Date.now(),name:code,code,
+        color:COLORS[Math.floor(Math.random()*COLORS.length)],
+        avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],zone:'—',status:''};
+      pending.push(user);
+      if(activeTab==='crew') renderCrew(document.getElementById('tab-content'));
+      else toast('Request sent!','Waiting for them to accept','amber','📨',3500);
+      if(inp) inp.value='';
+    } else {
+      toast('Could not send request',e.message.slice(0,60),'red','⚠',4000);
+    }
   }
 }
 async function acceptFriend(i){
