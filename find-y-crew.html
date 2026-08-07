@@ -680,15 +680,22 @@ function obNext() {
   } else { obSkip(); }
 }
 function obSkip() {
+  // Hide onboard — use BOTH class and direct style to be 100% sure
   var ob = document.getElementById('onboard');
+  if(ob) {
+    ob.classList.remove('show');
+    ob.style.display = 'none';
+    ob.style.pointerEvents = 'none';
+  }
+  // Show setup — force display:flex directly
   var su = document.getElementById('setup');
-  if(ob) ob.classList.remove('show');
   if(su) {
     su.classList.add('show');
-    // Ensure grids are built
-    buildColorGrid();
-    buildAvatarGrid();
+    su.style.display = 'flex';
   }
+  // Build grids safely
+  try { buildColorGrid(); } catch(e) { console.warn('colorGrid:', e); }
+  try { buildAvatarGrid(); } catch(e) { console.warn('avatarGrid:', e); }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -820,6 +827,7 @@ function loginReturning() {
     if(p.friends) try{friends=JSON.parse(p.friends);}catch(e){}
   } catch(e){}
   ROLE='fan';
+  document.getElementById('setup').style.display='none';
   startApp();
 }
 function saveProfile() {
@@ -837,8 +845,10 @@ function saveProfile() {
 async function startApp() {
   // Generate code using name+avatar for uniqueness (if not returning user)
   if (!MY_CODE) MY_CODE = genCode(MY_NAME, MY_AVATAR);
-  document.getElementById('setup').classList.remove('show');
-  document.getElementById('app').classList.add('show');
+  var su2 = document.getElementById('setup');
+  var ap = document.getElementById('app');
+  if(su2) { su2.classList.remove('show'); su2.style.display = 'none'; }
+  if(ap) { ap.classList.add('show'); ap.style.display = 'flex'; }
   // Update branding for Sziget mode
   if(SZIGET_MODE){
     const logo=document.querySelector('.hdr-logo');
@@ -1381,7 +1391,7 @@ async function addByCode(code){
         color:COLORS[Math.floor(Math.random()*COLORS.length)],
         avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],
         zone:'Offline',status:''};
-      toast('Added!','They'll appear when they open the app','amber','📨',4000);
+      toast('Added!',"They'll appear when they open the app",'amber','📨',4000);
     }
     friends.push(user);
     saveProfile();
