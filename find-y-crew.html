@@ -612,7 +612,8 @@ let myLat=null, myLng=null, watchId=null, pushTimer=null;
 let dbOk=false, centered=false, mapMode='street'; // 'street' | 'custom'
 let friends=[], pending=[], privSettings={visible:true,exact:true};
 let myStatusMsg='', myStatusExpiry=0, mySelEmoji='🍺';
-let meetPin=null, selectedFriend=null, activeTab=null;
+let meetPin=null, myMeetLat=null, myMeetLng=null;
+let selectedFriend=null, activeTab=null;
 let leafMap=null, myLeafMarker=null, myAccCircle=null, otherLeafMarkers={};
 let allUsers=[], sessionStart=Date.now();
 let setupStep=0, obSlide=0;
@@ -884,14 +885,16 @@ function onPos(pos) {
   if(ROLE==='fan'&&!privSettings.visible) return;
   if(mapMode==='street') {
     if(!myLeafMarker){
+      const _myStatus = myStatusMsg && Date.now()<myStatusExpiry ? myStatusMsg : '';
       const icon=L.divIcon({className:'',iconSize:[28,36],iconAnchor:[14,34],
         html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          ${_myStatus?`<div style="font-size:9px;background:rgba(0,0,0,0.82);color:white;padding:2px 6px;border-radius:8px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;border:1px solid ${MY_COLOR}66;">${_myStatus}</div>`:''}
           <div style="font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));">${MY_AVATAR}</div>
           <div style="width:10px;height:10px;border-radius:50%;background:${MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${MY_COLOR};"></div>
         </div>`});
       myLeafMarker=L.marker([myLat,myLng],{icon,zIndexOffset:1000}).addTo(leafMap)
         .bindPopup(`<b>${ROLE==='admin'?'Admin (hidden)':MY_NAME}</b>`);
-    } else { myLeafMarker.setLatLng([myLat,myLng]); }
+    } else { myLeafMarker.setLatLng([myLat,myLng]); updateMyMarkerStatus(); }
     if(!myAccCircle){
       myAccCircle=L.circle([myLat,myLng],{radius:pos.coords.accuracy,
         color:MY_COLOR,fillColor:MY_COLOR,fillOpacity:.07,weight:1}).addTo(leafMap);
@@ -966,7 +969,11 @@ async function pushMyPos(){
       id:MY_CODE,name:MY_NAME,code:MY_CODE,
       color:MY_COLOR,avatar:MY_AVATAR,
       x:myLat,y:myLng,
-      status:myStatusMsg&&Date.now()<myStatusExpiry?myStatusMsg:'',
+      status:(()=>{
+        const txt=myStatusMsg&&Date.now()<myStatusExpiry?myStatusMsg:'';
+        const meet=myMeetLat!==null?`||MEET:${myMeetLat.toFixed(6)}:${myMeetLng.toFixed(6)}`:'';
+        return txt+meet;
+      })(),
       status_expiry:myStatusExpiry,
       updated_at:Date.now()
     }]);
@@ -987,8 +994,19 @@ async function syncPositions(){
         const codeClean=f.code.replace(/[^A-Z0-9]/gi,'').toUpperCase();
         const live=data.find(p=>(p.code===f.code||p.code.replace(/[^A-Z0-9]/gi,'').toUpperCase()===codeClean)&&now-p.updated_at<STALE_MS);
         if(live){
-          f.zone='Online'; f.status=live.status_expiry>now?live.status:'';
-          f.lastSeen=live.updated_at; // Track when we last saw them
+          f.zone='Online';
+          f.lastSeen=live.updated_at;
+          // Parse status — separate text from encoded meet point
+          const rawSt=live.status||'';
+          const meetIdx=rawSt.indexOf('||MEET:');
+          if(meetIdx!==-1){
+            f.status=live.status_expiry>now?rawSt.slice(0,meetIdx):'';
+            const mp=rawSt.slice(meetIdx+7).split(':');
+            f.meetLat=parseFloat(mp[0]); f.meetLng=parseFloat(mp[1]);
+          } else {
+            f.status=live.status_expiry>now?rawSt:'';
+            f.meetLat=null; f.meetLng=null;
+          }
           const lat=live.x,lng=live.y;
           const fAge = f.lastSeen ? Math.floor((now-f.lastSeen)/60000) : 0;
           const fStale = fAge > 2;
@@ -1002,12 +1020,33 @@ async function syncPositions(){
                 ${fStale?`<div style="font-size:7px;color:rgba(255,255,255,0.8);background:rgba(0,0,0,0.6);padding:1px 3px;border-radius:2px;">${fAgeStr}</div>`:''}
               </div>`});
             otherLeafMarkers[f.code]=L.marker([lat,lng],{icon}).addTo(leafMap).bindPopup(`<b>${f.name}</b><br>${fAgeStr}${f.status?'<br>'+f.status:''}`);
-          } else {
+  
+          // Draw/update this friend's meet point if they have one
+          const mpKey = 'meet_'+f.code;
+          if(f.meetLat && f.meetLng){
+            const mpIcon = L.divIcon({className:'',iconSize:[90,34],iconAnchor:[45,34],
+              html:`<div style="display:flex;flex-direction:column;align-items:center;">
+                <div style="background:${f.color||'#ff4500'};color:white;font-size:9px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:3px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3);">📍 ${f.name}: MEET HERE</div>
+                <div style="width:2px;height:6px;background:${f.color||'#ff4500'};margin:0 auto;"></div>
+              </div>`});
+            if(!otherLeafMarkers[mpKey]){
+              otherLeafMarkers[mpKey]=L.marker([f.meetLat,f.meetLng],{icon:mpIcon,zIndexOffset:500}).addTo(leafMap);
+            } else {
+              otherLeafMarkers[mpKey].setLatLng([f.meetLat,f.meetLng]);
+              otherLeafMarkers[mpKey].setIcon(mpIcon);
+            }
+          } else if(otherLeafMarkers[mpKey]){
+            leafMap.removeLayer(otherLeafMarkers[mpKey]);
+            delete otherLeafMarkers[mpKey];
+          }
+        } else {
             otherLeafMarkers[f.code].setLatLng([lat,lng]);
             const _a=f.lastSeen?Math.floor((Date.now()-f.lastSeen)/60000):0;
             const _s=_a>2;const _l=_a===0?'Live':_a<60?_a+'m':Math.floor(_a/60)+'h';
             otherLeafMarkers[f.code].setIcon(L.divIcon({className:'',iconSize:[34,46],iconAnchor:[17,44],
-              html:'<div style="display:flex;flex-direction:column;align-items:center;gap:1px;opacity:'+(_s?0.7:1)+'"><div style="font-size:18px;line-height:1;">'+(f.avatar||'🙂')+'</div><div style="width:10px;height:10px;border-radius:50%;background:'+(_s?'#888':f.color||MY_COLOR)+';border:2px solid white;"></div><div style="font-size:8px;font-family:monospace;font-weight:700;color:white;background:'+(_s?'rgba(80,80,80,.9)':f.color||MY_COLOR)+';padding:1px 4px;border-radius:2px;white-space:nowrap;">'+f.name+'</div>'+(_s?'<div style="font-size:7px;color:rgba(255,255,255,.8);background:rgba(0,0,0,.6);padding:1px 3px;border-radius:2px;">'+_l+'</div>':'')+'</div>'
+              html:'<div style="display:flex;flex-direction:column;align-items:center;gap:1px;opacity:'+(_s?0.7:1)+'">'+
+                (f.status?'<div style="font-size:9px;background:rgba(0,0,0,0.82);color:white;padding:2px 6px;border-radius:8px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;border:1px solid '+(f.color||MY_COLOR)+'44;">'+f.status+'</div>':'')
+                +'<div style="font-size:18px;line-height:1;">'+(f.avatar||'🙂')+'</div><div style="width:10px;height:10px;border-radius:50%;background:'+(_s?'#888':f.color||MY_COLOR)+';border:2px solid white;"></div><div style="font-size:8px;font-family:monospace;font-weight:700;color:white;background:'+(_s?'rgba(80,80,80,.9)':f.color||MY_COLOR)+';padding:1px 4px;border-radius:2px;white-space:nowrap;">'+f.name+'</div>'+(_s?'<div style="font-size:7px;color:rgba(255,255,255,.8);background:rgba(0,0,0,.6);padding:1px 3px;border-radius:2px;">'+_l+'</div>':'')+'</div>'
             }));
           }
         } else {
@@ -1074,7 +1113,7 @@ function initLeafMap(){
     if (SZIGET_MODE) {
       setTimeout(() => {
         try {
-          document.getElementById('map').style.opacity = '0.08'; // Nearly hide street tiles
+          // No filter — street map stays visible under festival overlay
           festivalMapOverlay = L.imageOverlay(SZIGET_MAP_URL, SZIGET_BOUNDS, {
             opacity: 0.92, interactive: false, zIndex: 10
           }).addTo(leafMap);
@@ -1099,15 +1138,11 @@ function toggleMapMode(){
     mapMode='street';
     if(btn)btn.textContent='Festival';
     festivalMapOverlay.setOpacity(0.3);
-    document.getElementById('map').style.opacity='1';
-    document.getElementById('map').style.filter='none';
   } else {
     // Back to festival map
     mapMode='festival';
     if(btn)btn.textContent='Street';
     festivalMapOverlay.setOpacity(0.92);
-    document.getElementById('map').style.opacity='0.08';
-    document.getElementById('map').style.filter='none';
   }
 }
 
@@ -1449,28 +1484,48 @@ function focusZone(id){
 // ════════════════════════════════════════════════════════════════════════════
 // STATUS + MEETING POINT
 // ════════════════════════════════════════════════════════════════════════════
+function updateMyMarkerStatus(){
+  if(!myLeafMarker||myLat===null) return;
+  const _s = myStatusMsg && Date.now()<myStatusExpiry ? myStatusMsg : '';
+  myLeafMarker.setIcon(L.divIcon({className:'',iconSize:[28,36],iconAnchor:[14,34],
+    html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      ${_s?`<div style="font-size:9px;background:rgba(0,0,0,0.85);color:white;padding:2px 7px;border-radius:8px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;border:1px solid ${MY_COLOR}55;box-shadow:0 1px 4px rgba(0,0,0,.4);">${_s}</div>`:''}
+      <div style="font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));">${MY_AVATAR}</div>
+      <div style="width:10px;height:10px;border-radius:50%;background:${MY_COLOR};border:2px solid white;box-shadow:0 0 6px ${MY_COLOR};"></div>
+    </div>`}));
+}
+
 function submitStatus(){
   const inp=document.getElementById('st-input');
   if(!inp||!inp.value.trim()){toast('Write a message first','','amber','💬',2000);return;}
   myStatusMsg=mySelEmoji+' '+inp.value.trim();
   myStatusExpiry=Date.now()+600000;
   toast('Status set','Visible for 10 minutes','amber','💬',3000);
+  updateMyMarkerStatus();
   if(activeTab==='status') renderTabContent('status');
   inp.value='';
 }
-function clearStatus(){myStatusMsg='';myStatusExpiry=0;if(activeTab==='status')renderTabContent('status');}
-function tickStatus(){if(myStatusMsg&&Date.now()>myStatusExpiry){myStatusMsg='';if(activeTab==='status')renderTabContent('status');}}
+function clearStatus(){myStatusMsg='';myStatusExpiry=0;if(activeTab==='status')renderTabContent('status');updateMyMarkerStatus();}
+function tickStatus(){if(myStatusMsg&&Date.now()>myStatusExpiry){myStatusMsg='';if(activeTab==='status')renderTabContent('status');updateMyMarkerStatus();}}
 
 function placeMeetPin(){
   if(!leafMap) return;
   const c=leafMap.getCenter();
   if(meetPin) leafMap.removeLayer(meetPin);
+  // Store coords and push to Supabase via status field
+  myMeetLat=c.lat; myMeetLng=c.lng;
+  pushMyPos(); // Immediately push updated position with meet point
   meetPin=L.marker([c.lat,c.lng],{
     icon:L.divIcon({className:'',iconSize:[80,30],iconAnchor:[40,30],
       html:`<div style="background:var(--accent);color:white;font-size:9px;font-weight:700;letter-spacing:2px;padding:4px 8px;border-radius:2px;white-space:nowrap;font-family:var(--font-d);">MEET HERE</div><div style="width:2px;height:8px;background:var(--accent);margin:0 auto;"></div>`
     })
   }).addTo(leafMap);
-  meetPin.on('click',()=>{leafMap.removeLayer(meetPin);meetPin=null;});
+  meetPin.on('click',()=>{
+    leafMap.removeLayer(meetPin); meetPin=null;
+    myMeetLat=null; myMeetLng=null;
+    pushMyPos(); // Clear meet point from Supabase
+    toast('Meet point removed','','amber','📍',2000);
+  });
   toast('Meeting point dropped','Your crew can see this pin','amber','📍',3500);
 }
 
