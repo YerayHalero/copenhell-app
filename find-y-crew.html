@@ -984,7 +984,8 @@ async function syncPositions(){
     // Update friend markers (fan mode)
     if(ROLE==='fan'){
       friends.forEach(f=>{
-        const live=data.find(p=>p.code===f.code&&now-p.updated_at<STALE_MS);
+        const codeClean=f.code.replace(/[^A-Z0-9]/gi,'').toUpperCase();
+        const live=data.find(p=>(p.code===f.code||p.code.replace(/[^A-Z0-9]/gi,'').toUpperCase()===codeClean)&&now-p.updated_at<STALE_MS);
         if(live){
           f.zone='Online'; f.status=live.status_expiry>now?live.status:'';
           f.lastSeen=live.updated_at; // Track when we last saw them
@@ -1073,7 +1074,7 @@ function initLeafMap(){
     if (SZIGET_MODE) {
       setTimeout(() => {
         try {
-          document.getElementById('map').style.filter = 'grayscale(60%) brightness(0.5)';
+          document.getElementById('map').style.opacity = '0.08'; // Nearly hide street tiles
           festivalMapOverlay = L.imageOverlay(SZIGET_MAP_URL, SZIGET_BOUNDS, {
             opacity: 0.92, interactive: false, zIndex: 10
           }).addTo(leafMap);
@@ -1098,13 +1099,15 @@ function toggleMapMode(){
     mapMode='street';
     if(btn)btn.textContent='Festival';
     festivalMapOverlay.setOpacity(0.3);
+    document.getElementById('map').style.opacity='1';
     document.getElementById('map').style.filter='none';
   } else {
     // Back to festival map
     mapMode='festival';
     if(btn)btn.textContent='Street';
     festivalMapOverlay.setOpacity(0.92);
-    document.getElementById('map').style.filter='grayscale(60%) brightness(0.5)';
+    document.getElementById('map').style.opacity='0.08';
+    document.getElementById('map').style.filter='none';
   }
 }
 
@@ -1194,7 +1197,7 @@ function renderFriendCards(){
   list.innerHTML=friends.map(f=>{
     const age = f.lastSeen ? Math.floor((now-f.lastSeen)/60000) : null;
     const isStale = age !== null && age > 2;
-    const ageLabel = age===null ? '○ Offline' : age===0 ? '● Live' : age<60 ? `${age}m ago` : `${Math.floor(age/60)}h ago`;
+    const ageLabel = age===null ? '— Waiting' : age===0 ? '● Live' : age<5 ? `● ${age}m ago` : age<60 ? `${age}m ago` : `${Math.floor(age/60)}h ago`;
     const ageColor = age===null ? 'var(--ink3)' : age===0 ? '#1a7a3c' : age<10 ? 'var(--amber)' : 'var(--ink3)';
     return `<div class="f-card ${selectedFriend===f.code?'sel':''}" onclick="focusFriend('${f.code}')" style="opacity:${isStale?'0.8':'1'}">
       <div class="fa" style="background:${f.color||MY_COLOR}22;border-color:${f.color||MY_COLOR};">${f.avatar||'🙂'}</div>
@@ -1387,7 +1390,8 @@ async function addByCode(code){
       user={id:'f_'+Date.now(),name:p.name||code,code,
         color:p.color||COLORS[Math.floor(Math.random()*COLORS.length)],
         avatar:p.avatar||AVATARS[Math.floor(Math.random()*AVATARS.length)],
-        zone:'Online',status:p.status||''};
+        zone:'Online',status:p.status||'',
+        lastSeen:p.updated_at||Date.now()}; // Set lastSeen immediately
       toast(p.name+' added to crew!','You can now see each other on the map','green','🤘',4000);
     } else {
       // Person not online yet — add anyway, will appear when they join
