@@ -131,11 +131,11 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
 /* MAP */
 #map-wrap{flex:1;position:relative;overflow:hidden;}
 #map{width:100%;height:100%;}
-.map-btn-grp{position:absolute;bottom:12px;right:12px;z-index:30;display:flex;flex-direction:column;gap:4px;}
+.map-btn-grp{position:absolute;bottom:12px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:4px;}
 .map-btn{width:32px;height:32px;background:white;border:1.5px solid var(--border2);color:var(--ink);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 .map-btn:hover{background:var(--bg2);}
-#locate-btn{position:absolute;bottom:130px;right:12px;z-index:30;background:var(--accent);border:none;color:white;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;cursor:pointer;font-family:var(--font-d);font-weight:700;border-radius:2px;}
-#map-mode-btn{position:absolute;top:10px;right:10px;z-index:30;background:white;border:1.5px solid var(--border2);color:var(--ink2);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;cursor:pointer;font-family:var(--font-d);font-weight:600;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+#locate-btn{position:absolute;bottom:130px;right:12px;z-index:1000;background:var(--accent);border:none;color:white;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;cursor:pointer;font-family:var(--font-d);font-weight:700;border-radius:2px;}
+#map-mode-btn{position:absolute;top:10px;right:10px;z-index:1000;background:white;border:1.5px solid var(--border2);color:var(--ink2);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;cursor:pointer;font-family:var(--font-d);font-weight:600;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 
 /* MEET PIN */
 .meetpin{position:absolute;transform:translate(-50%,-100%);z-index:25;cursor:pointer;pointer-events:all;}
@@ -578,28 +578,28 @@ const ZONES = [
 // SZIGET 2026 CONFIGURATION
 // ════════════════════════════════════════════════════════════════════════════
 const SZIGET_MODE = true;
-const SZIGET_CENTER = [47.5720, 19.0490];
+const SZIGET_CENTER = [47.5662, 19.0495];
 const SZIGET_ZOOM = 15;
-// GPS bounds calibrated from K-Bridge & H-Bridge reference points
-const SZIGET_BOUNDS = [[47.5585, 19.0345], [47.5845, 19.0670]];
+// GPS bounds recalibrated using K-Bridge (47.549N,19.047E) and H-Bridge (47.550N,19.060E)
+const SZIGET_BOUNDS = [[47.5448, 19.0380], [47.5876, 19.0610]];
 // Festival map — loaded from external file
 const SZIGET_MAP_URL = './sziget-map.jpg';
 const SZIGET_STAGES = [
-  {name:'Main Stage',          icon:'🎸', lat:47.57268, lng:19.05013},
-  {name:'Revolut Stage',       icon:'⚡', lat:47.57383, lng:19.04666},
-  {name:'Bacardi Stage',       icon:'🍹', lat:47.57459, lng:19.05274},
-  {name:'Yettel Colosseum',    icon:'🔊', lat:47.57154, lng:19.05395},
-  {name:'BOLT Night Stage',    icon:'🌙', lat:47.57268, lng:19.04475},
-  {name:'Budapest Park Stage', icon:'🇭🇺', lat:47.57688, lng:19.04961},
-  {name:'Delta District',      icon:'🎛', lat:47.57344, lng:19.04110},
-  {name:'dropYard',            icon:'🎤', lat:47.57268, lng:19.04223},
-  {name:'K-Bridge Entrance',   icon:'🚪', lat:47.56105, lng:19.04718},
-  {name:'H-Bridge Entrance',   icon:'🚪', lat:47.56220, lng:19.06559},
-  {name:'Camping of Nations',  icon:'⛺', lat:47.57383, lng:19.03719},
-  {name:'Basic Camping',       icon:'🏕', lat:47.57535, lng:19.06125},
-  {name:'Sziget Beach',        icon:'🏖', lat:47.56811, lng:19.04666},
-  {name:'Wonderland',          icon:'🎡', lat:47.57916, lng:19.03876},
-  {name:'Szoho',               icon:'🌈', lat:47.57116, lng:19.04822},
+  {name:'Main Stage',          icon:'🎸', lat:47.56812, lng:19.04908},
+  {name:'Revolut Stage',       icon:'⚡', lat:47.57000, lng:19.04663},
+  {name:'Bacardi Stage',       icon:'🍹', lat:47.57125, lng:19.05092},
+  {name:'Yettel Colosseum',    icon:'🔊', lat:47.56624, lng:19.05178},
+  {name:'BOLT Night Stage',    icon:'🌙', lat:47.56812, lng:19.04528},
+  {name:'Budapest Park Stage', icon:'🇭🇺', lat:47.57501, lng:19.04872},
+  {name:'Delta District',      icon:'🎛', lat:47.56937, lng:19.04271},
+  {name:'dropYard',            icon:'🎤', lat:47.56812, lng:19.04350},
+  {name:'K-Bridge Entrance',   icon:'🚪', lat:47.54900, lng:19.04700},
+  {name:'H-Bridge Entrance',   icon:'🚪', lat:47.55182, lng:19.06000},
+  {name:'Camping of Nations',  icon:'⛺', lat:47.57000, lng:19.03995},
+  {name:'Basic Camping',       icon:'🏕', lat:47.57251, lng:19.05693},
+  {name:'Sziget Beach',        icon:'🏖', lat:47.56060, lng:19.04663},
+  {name:'Wonderland',          icon:'🎡', lat:47.57878, lng:19.04105},
+  {name:'Szoho',               icon:'🌈', lat:47.56561, lng:19.04774},
 ];
 let szigetMarkersAdded = false;
 let festivalMapOverlay = null; // Will hold image overlay when map image is provided
