@@ -578,28 +578,28 @@ const ZONES = [
 // SZIGET 2026 CONFIGURATION
 // ════════════════════════════════════════════════════════════════════════════
 const SZIGET_MODE = true;
-const SZIGET_CENTER = [47.5704, 19.0524];
+const SZIGET_CENTER = [47.5539, 19.0550];
 const SZIGET_ZOOM = 15;
 // GPS bounds anchored to K-Bridge (Wikidata verified: 47.5519N, 19.0489E)
-const SZIGET_BOUNDS = [[47.5478, 19.0363], [47.5930, 19.0686]];
+const SZIGET_BOUNDS = [[47.548, 19.045], [47.563, 19.064]];
 // Festival map — loaded from external file
 const SZIGET_MAP_URL = './sziget-map.jpg';
 const SZIGET_STAGES = [
-  {name:'Main Stage',          icon:'🎸', lat:47.57246, lng:19.05183},
-  {name:'Revolut Stage',       icon:'⚡', lat:47.57444, lng:19.04837},
-  {name:'Bacardi Stage',       icon:'🍹', lat:47.57577, lng:19.05442},
-  {name:'Yettel Colosseum',    icon:'🔊', lat:47.57047, lng:19.05563},
-  {name:'BOLT Night Stage',    icon:'🌙', lat:47.57246, lng:19.04647},
-  {name:'Budapest Park Stage', icon:'🇭🇺', lat:47.57974, lng:19.05131},
-  {name:'Delta District',      icon:'🎛', lat:47.57378, lng:19.04284},
-  {name:'dropYard',            icon:'🎤', lat:47.57246, lng:19.04396},
-  {name:'K-Bridge Entrance',   icon:'🚪', lat:47.55194, lng:19.04889},
-  {name:'H-Bridge Entrance',   icon:'🚪', lat:47.55525, lng:19.06721},
-  {name:'Camping of Nations',  icon:'⛺', lat:47.57444, lng:19.03800},
-  {name:'Basic Camping',       icon:'🏕', lat:47.57709, lng:19.06289},
-  {name:'Sziget Beach',        icon:'🏖', lat:47.56452, lng:19.04837},
-  {name:'Wonderland',          icon:'🎡', lat:47.58371, lng:19.04051},
-  {name:'Szoho',               icon:'🌈', lat:47.56981, lng:19.04993},
+  {name:'Main Stage',          icon:'🎸', lat:47.55680, lng:19.05344},
+  {name:'Revolut Stage',       icon:'⚡', lat:47.55523, lng:19.05324},
+  {name:'Bacardi Stage',       icon:'🍹', lat:47.55719, lng:19.05697},
+  {name:'Yettel Colosseum',    icon:'🔊', lat:47.55588, lng:19.05697},
+  {name:'BOLT Night Stage',    icon:'🌙', lat:47.55628, lng:19.04931},
+  {name:'Budapest Park Stage', icon:'🇭🇺', lat:47.55870, lng:19.05383},
+  {name:'Delta District',      icon:'🎛', lat:47.55706, lng:19.04971},
+  {name:'dropYard',            icon:'🎤', lat:47.55641, lng:19.05128},
+  {name:'K-Bridge Entrance',   icon:'🚪', lat:47.55175, lng:19.04912},
+  {name:'H-Bridge Entrance',   icon:'🚪', lat:47.55221, lng:19.05874},
+  {name:'Camping of Nations',  icon:'⛺', lat:47.55850, lng:19.04892},
+  {name:'Basic Camping',       icon:'🏕', lat:47.55890, lng:19.05933},
+  {name:'Sziget Beach',        icon:'🏖', lat:47.56034, lng:19.06070},
+  {name:'Wonderland',          icon:'🎡', lat:47.55969, lng:19.05933},
+  {name:'Szoho',               icon:'🌈', lat:47.55490, lng:19.05383},
 ];
 let szigetMarkersAdded = false;
 let festivalMapOverlay = null; // Will hold image overlay when map image is provided
@@ -938,7 +938,7 @@ function addSzigetMarkers(){
         <div style="color:#888;font-size:11px;margin-top:2px;">Sziget 2026</div>
       </div>`);
   });
-  L.circle([47.5704,19.0495],{radius:950,color:'#ff4500',fillColor:'#ff4500',
+  L.circle([47.5539,19.0550],{radius:680,color:'#ff4500',fillColor:'#ff4500',
     fillOpacity:0.05,weight:2,dashArray:'10,8'}).addTo(leafMap);
 }
 
