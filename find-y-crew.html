@@ -509,7 +509,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
         <div style="font-size:10px;font-family:var(--font-m);color:var(--ink3);letter-spacing:3px;">LOADING MAP...</div>
       </div>
       <div id="custom-map-layer"><img id="custom-map-img" src="" alt=""/></div>
-      <button id="map-mode-btn" onclick="toggleMapMode()" style="font-size:8px;padding:4px 7px;opacity:0.6;">Street</button>
+      
       <div id="markers-layer" style="position:absolute;inset:0;z-index:20;pointer-events:none;"></div>
       <div id="toast-wrap"></div>
       <button id="locate-btn" onclick="centerOnMe()">● Me</button>
@@ -578,28 +578,28 @@ const ZONES = [
 // SZIGET 2026 CONFIGURATION
 // ════════════════════════════════════════════════════════════════════════════
 const SZIGET_MODE = true;
-const SZIGET_CENTER = [47.5662, 19.0495];
+const SZIGET_CENTER = [47.5704, 19.0524];
 const SZIGET_ZOOM = 15;
-// GPS bounds recalibrated using K-Bridge (47.549N,19.047E) and H-Bridge (47.550N,19.060E)
-const SZIGET_BOUNDS = [[47.5448, 19.0380], [47.5876, 19.0610]];
+// GPS bounds anchored to K-Bridge (Wikidata verified: 47.5519N, 19.0489E)
+const SZIGET_BOUNDS = [[47.5478, 19.0363], [47.5930, 19.0686]];
 // Festival map — loaded from external file
 const SZIGET_MAP_URL = './sziget-map.jpg';
 const SZIGET_STAGES = [
-  {name:'Main Stage',          icon:'🎸', lat:47.56812, lng:19.04908},
-  {name:'Revolut Stage',       icon:'⚡', lat:47.57000, lng:19.04663},
-  {name:'Bacardi Stage',       icon:'🍹', lat:47.57125, lng:19.05092},
-  {name:'Yettel Colosseum',    icon:'🔊', lat:47.56624, lng:19.05178},
-  {name:'BOLT Night Stage',    icon:'🌙', lat:47.56812, lng:19.04528},
-  {name:'Budapest Park Stage', icon:'🇭🇺', lat:47.57501, lng:19.04872},
-  {name:'Delta District',      icon:'🎛', lat:47.56937, lng:19.04271},
-  {name:'dropYard',            icon:'🎤', lat:47.56812, lng:19.04350},
-  {name:'K-Bridge Entrance',   icon:'🚪', lat:47.54900, lng:19.04700},
-  {name:'H-Bridge Entrance',   icon:'🚪', lat:47.55182, lng:19.06000},
-  {name:'Camping of Nations',  icon:'⛺', lat:47.57000, lng:19.03995},
-  {name:'Basic Camping',       icon:'🏕', lat:47.57251, lng:19.05693},
-  {name:'Sziget Beach',        icon:'🏖', lat:47.56060, lng:19.04663},
-  {name:'Wonderland',          icon:'🎡', lat:47.57878, lng:19.04105},
-  {name:'Szoho',               icon:'🌈', lat:47.56561, lng:19.04774},
+  {name:'Main Stage',          icon:'🎸', lat:47.57246, lng:19.05183},
+  {name:'Revolut Stage',       icon:'⚡', lat:47.57444, lng:19.04837},
+  {name:'Bacardi Stage',       icon:'🍹', lat:47.57577, lng:19.05442},
+  {name:'Yettel Colosseum',    icon:'🔊', lat:47.57047, lng:19.05563},
+  {name:'BOLT Night Stage',    icon:'🌙', lat:47.57246, lng:19.04647},
+  {name:'Budapest Park Stage', icon:'🇭🇺', lat:47.57974, lng:19.05131},
+  {name:'Delta District',      icon:'🎛', lat:47.57378, lng:19.04284},
+  {name:'dropYard',            icon:'🎤', lat:47.57246, lng:19.04396},
+  {name:'K-Bridge Entrance',   icon:'🚪', lat:47.55194, lng:19.04889},
+  {name:'H-Bridge Entrance',   icon:'🚪', lat:47.55525, lng:19.06721},
+  {name:'Camping of Nations',  icon:'⛺', lat:47.57444, lng:19.03800},
+  {name:'Basic Camping',       icon:'🏕', lat:47.57709, lng:19.06289},
+  {name:'Sziget Beach',        icon:'🏖', lat:47.56452, lng:19.04837},
+  {name:'Wonderland',          icon:'🎡', lat:47.58371, lng:19.04051},
+  {name:'Szoho',               icon:'🌈', lat:47.56981, lng:19.04993},
 ];
 let szigetMarkersAdded = false;
 let festivalMapOverlay = null; // Will hold image overlay when map image is provided
@@ -921,24 +921,28 @@ function retryGPS(){document.getElementById('gps-err').classList.remove('show');
 function centerOnMe(){if(myLat&&leafMap)leafMap.flyTo([myLat,myLng],17,{animate:true,duration:0.6});}
 
 function addSzigetMarkers(){
-  if(!SZIGET_MODE||szigetMarkersAdded||!leafMap) return;
-  szigetMarkersAdded = true;
+  if(!SZIGET_MODE||szigetMarkersAdded||!leafMap)return;
+  szigetMarkersAdded=true;
   SZIGET_STAGES.forEach(s=>{
-    const icon=L.divIcon({className:'',iconSize:[32,40],iconAnchor:[16,38],
-      html:`<div style="display:flex;flex-direction:column;align-items:center;">
-        <div style="font-size:18px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));">${s.icon}</div>
-        <div style="font-size:8px;font-family:monospace;font-weight:700;color:white;background:rgba(0,0,0,.75);padding:1px 4px;border-radius:2px;white-space:nowrap;margin-top:1px;">${s.name}</div>
+    const icon=L.divIcon({className:'',iconSize:[52,58],iconAnchor:[26,56],
+      html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <div style="font-size:30px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7));">${s.icon}</div>
+        <div style="font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.88);
+          padding:3px 9px;border-radius:4px;white-space:nowrap;
+          border:1px solid rgba(255,69,0,.7);box-shadow:0 2px 6px rgba(0,0,0,.5);">${s.name}</div>
       </div>`});
-    L.marker([s.lat,s.lng],{icon,zIndexOffset:50}).addTo(leafMap)
-      .bindPopup(`<b>${s.icon} ${s.name}</b><br><span style="font-size:11px;">Sziget 2026</span>`);
+    L.marker([s.lat,s.lng],{icon,zIndexOffset:200}).addTo(leafMap)
+      .bindPopup(`<div style="text-align:center;padding:6px;min-width:140px;">
+        <div style="font-size:26px;margin-bottom:4px;">${s.icon}</div>
+        <div style="font-weight:700;font-size:14px;">${s.name}</div>
+        <div style="color:#888;font-size:11px;margin-top:2px;">Sziget 2026</div>
+      </div>`);
   });
+  L.circle([47.5704,19.0495],{radius:950,color:'#ff4500',fillColor:'#ff4500',
+    fillOpacity:0.05,weight:2,dashArray:'10,8'}).addTo(leafMap);
 }
 
-function loadFestivalMap(imageUrl){
-  // Called when user provides a festival map image
-  if(festivalMapOverlay) leafMap.removeLayer(festivalMapOverlay);
-  festivalMapOverlay = L.imageOverlay(imageUrl, SZIGET_BOUNDS, {opacity:0.7}).addTo(leafMap);
-}
+
 
 // ════════════════════════════════════════════════════════════════════════════
 // SUPABASE SYNC
@@ -1097,10 +1101,9 @@ function initLeafMap(){
       markerZoomAnimation: true
     }).setView(SZIGET_MODE ? SZIGET_CENTER : [51.5, 0], SZIGET_MODE ? SZIGET_ZOOM : 13);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap © CARTO',
-      maxZoom: 19,
-      subdomains: 'abcd'
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19, keepBuffer: 4
     }).addTo(leafMap);
 
     // Hide loading overlay
@@ -1109,19 +1112,10 @@ function initLeafMap(){
       if (ov) ov.style.display = 'none';
     }, 800);
 
-    // Load Sziget festival map overlay
     if (SZIGET_MODE) {
       setTimeout(() => {
-        try {
-          // No filter — street map stays visible under festival overlay
-          festivalMapOverlay = L.imageOverlay(SZIGET_MAP_URL, SZIGET_BOUNDS, {
-            opacity: 0.92, interactive: false, zIndex: 10
-          }).addTo(leafMap);
-          leafMap.fitBounds(SZIGET_BOUNDS, { padding: [20, 20] });
-          mapMode = 'festival';
-          addSzigetMarkers();
-        } catch(e) { console.warn('Festival map error:', e); }
-      }, 1500);
+        try{leafMap.fitBounds(SZIGET_BOUNDS,{padding:[40,40]});addSzigetMarkers();}catch(e){}
+      }, 900);
     }
   } catch(e) {
     console.warn('Leaflet init error:', e);
@@ -1130,21 +1124,7 @@ function initLeafMap(){
 
 function mapZoom(f){if(leafMap)leafMap.setZoom(leafMap.getZoom()+(f>1?1:-1),{animate:true,duration:0.4});}
 function resetMapView(){if(leafMap&&myLat)leafMap.setView([myLat,myLng],16);}
-function toggleMapMode(){
-  const btn=document.getElementById('map-mode-btn');
-  if(!festivalMapOverlay) return;
-  if(mapMode==='festival'){
-    // Switch to street view (emergency navigation)
-    mapMode='street';
-    if(btn)btn.textContent='Festival';
-    festivalMapOverlay.setOpacity(0.3);
-  } else {
-    // Back to festival map
-    mapMode='festival';
-    if(btn)btn.textContent='Street';
-    festivalMapOverlay.setOpacity(0.92);
-  }
-}
+function toggleMapMode(){}
 
 // ════════════════════════════════════════════════════════════════════════════
 // TABS
