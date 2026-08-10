@@ -1099,10 +1099,11 @@ function initLeafMap(){
       markerZoomAnimation: true
     }).setView(SZIGET_MODE ? SZIGET_CENTER : [51.5, 0], SZIGET_MODE ? SZIGET_ZOOM : 13);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19, keepBuffer: 4
-    }).addTo(leafMap);
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Esri, HERE, Garmin', maxZoom: 19, keepBuffer: 6,
+        updateWhenIdle: false, updateWhenZooming: false }
+    ).addTo(leafMap);
 
     // Hide loading overlay
     setTimeout(() => {
@@ -1114,11 +1115,10 @@ function initLeafMap(){
       setTimeout(() => {
         try {
           festivalMapOverlay = L.imageOverlay(SZIGET_MAP_URL,
-            [[47.54002, 19.04288], [47.55995, 19.06171]],
-            {opacity: 0.82, interactive: false, zIndex: 10}
+            [[47.5415, 19.0445], [47.5585, 19.0600]],
+            {opacity: 0.78, interactive: false, zIndex: 10}
           ).addTo(leafMap);
-          leafMap.fitBounds([[47.542, 19.043],[47.560, 19.062]],{padding:[20,20]});
-          document.getElementById('map').style.filter='grayscale(50%) brightness(0.6)';
+          leafMap.fitBounds([[47.542, 19.044],[47.559, 19.061]],{padding:[20,20]});
         } catch(e){ console.warn('Overlay:',e); }
       }, 1000);
     }
@@ -1137,11 +1137,9 @@ function setMapMode(mode){
   if(!festivalMapOverlay) return;
   if(mode==='festival'){
     festivalMapOverlay.setOpacity(0.82);
-    document.getElementById('map').style.filter='grayscale(50%) brightness(0.6)';
   } else {
     // Street only — hide overlay completely
     festivalMapOverlay.setOpacity(0);
-    document.getElementById('map').style.filter='none';
   }
 }
 function toggleMapMode(){ setMapMode(mapMode==='festival'?'street':'festival'); }
