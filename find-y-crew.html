@@ -134,6 +134,20 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
 .map-btn-grp{position:absolute;bottom:12px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:4px;}
 .map-btn{width:32px;height:32px;background:white;border:1.5px solid var(--border2);color:var(--ink);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 .map-btn:hover{background:var(--bg2);}
+#map-toggle{
+  position:absolute;top:10px;right:10px;z-index:1000;
+  display:flex;border-radius:3px;overflow:hidden;
+  box-shadow:0 1px 4px rgba(0,0,0,.15);
+}
+.mt-btn{
+  padding:5px 10px;border:none;cursor:pointer;
+  font-family:var(--font-d);font-size:9px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;
+  background:white;color:var(--ink2);border-right:1px solid var(--border);
+  transition:all .15s;
+}
+.mt-btn:last-child{border-right:none;}
+.mt-btn.on{background:var(--ink);color:white;}
 #locate-btn{position:absolute;bottom:130px;right:12px;z-index:1000;background:var(--accent);border:none;color:white;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;cursor:pointer;font-family:var(--font-d);font-weight:700;border-radius:2px;}
 #map-mode-btn{position:absolute;top:10px;right:10px;z-index:1000;background:white;border:1.5px solid var(--border2);color:var(--ink2);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;cursor:pointer;font-family:var(--font-d);font-weight:600;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 
@@ -512,6 +526,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--fo
       
       <div id="markers-layer" style="position:absolute;inset:0;z-index:20;pointer-events:none;"></div>
       <div id="toast-wrap"></div>
+      <div id="map-toggle"><button class="mt-btn on" id="mt-festival" onclick="setMapMode('festival')">Festival</button><button class="mt-btn" id="mt-street" onclick="setMapMode('street')">Street</button></div>
       <button id="locate-btn" onclick="centerOnMe()">● Me</button>
       <div class="map-btn-grp">
         <button class="map-btn" onclick="mapZoom(1.2)">+</button>
@@ -923,27 +938,7 @@ function onGPSErr(e) {
 function retryGPS(){document.getElementById('gps-err').classList.remove('show');}
 function centerOnMe(){if(myLat&&leafMap)leafMap.flyTo([myLat,myLng],17,{animate:true,duration:0.6});}
 
-function addSzigetMarkers(){
-  if(!SZIGET_MODE||szigetMarkersAdded||!leafMap)return;
-  szigetMarkersAdded=true;
-  SZIGET_STAGES.forEach(s=>{
-    const icon=L.divIcon({className:'',iconSize:[52,58],iconAnchor:[26,56],
-      html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-        <div style="font-size:30px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7));">${s.icon}</div>
-        <div style="font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.88);
-          padding:3px 9px;border-radius:4px;white-space:nowrap;
-          border:1px solid rgba(255,69,0,.7);box-shadow:0 2px 6px rgba(0,0,0,.5);">${s.name}</div>
-      </div>`});
-    L.marker([s.lat,s.lng],{icon,zIndexOffset:200}).addTo(leafMap)
-      .bindPopup(`<div style="text-align:center;padding:6px;min-width:140px;">
-        <div style="font-size:26px;margin-bottom:4px;">${s.icon}</div>
-        <div style="font-weight:700;font-size:14px;">${s.name}</div>
-        <div style="color:#888;font-size:11px;margin-top:2px;">Sziget 2026</div>
-      </div>`);
-  });
-  L.circle([47.5539,19.0550],{radius:680,color:'#ff4500',fillColor:'#ff4500',
-    fillOpacity:0.05,weight:2,dashArray:'10,8'}).addTo(leafMap);
-}
+function addSzigetMarkers(){ /* stage markers removed per user request */ }
 
 
 
@@ -1123,7 +1118,6 @@ function initLeafMap(){
             {opacity: 0.82, interactive: false, zIndex: 10}
           ).addTo(leafMap);
           leafMap.fitBounds([[47.542, 19.043],[47.560, 19.062]],{padding:[20,20]});
-          addSzigetMarkers();
           document.getElementById('map').style.filter='grayscale(50%) brightness(0.6)';
         } catch(e){ console.warn('Overlay:',e); }
       }, 1000);
@@ -1135,21 +1129,22 @@ function initLeafMap(){
 
 function mapZoom(f){if(leafMap)leafMap.setZoom(leafMap.getZoom()+(f>1?1:-1),{animate:true,duration:0.4});}
 function resetMapView(){if(leafMap&&myLat)leafMap.setView([myLat,myLng],16);}
-function toggleMapMode(){
-  const btn=document.getElementById('map-mode-btn');
+function setMapMode(mode){
+  mapMode = mode;
+  // Update button states
+  document.getElementById('mt-festival').classList.toggle('on', mode==='festival');
+  document.getElementById('mt-street').classList.toggle('on', mode==='street');
   if(!festivalMapOverlay) return;
-  if(mapMode==='festival'){
-    mapMode='street';
-    festivalMapOverlay.setOpacity(0.25);
-    document.getElementById('map').style.filter='none';
-    if(btn)btn.textContent='Festival';
-  } else {
-    mapMode='festival';
+  if(mode==='festival'){
     festivalMapOverlay.setOpacity(0.82);
     document.getElementById('map').style.filter='grayscale(50%) brightness(0.6)';
-    if(btn)btn.textContent='Street';
+  } else {
+    // Street only — hide overlay completely
+    festivalMapOverlay.setOpacity(0);
+    document.getElementById('map').style.filter='none';
   }
 }
+function toggleMapMode(){ setMapMode(mapMode==='festival'?'street':'festival'); }
 
 // ════════════════════════════════════════════════════════════════════════════
 // TABS
